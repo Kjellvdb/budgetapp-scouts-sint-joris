@@ -1,0 +1,5 @@
+openpyxl
+groq
+python-dotenv
+pillow
+pyinstaller
