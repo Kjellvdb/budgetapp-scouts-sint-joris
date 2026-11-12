@@ -1,4 +1,3 @@
-"""Alle lees- en schrijfacties op het Excel-bestand. Rijen worden altijd via hun echte Excel-rijnummer aangesproken."""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -9,15 +8,12 @@ from typing import Any, Optional
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
-from app.common import (
-    EXPENSE_HEADERS, MEMBER_HEADERS, SHEET_EXPENSES, SHEET_MEMBERS, SHEET_VISITORS, SHEET_BUDGET, VISITOR_HEADERS,
-    Expense, field_for_header, format_quantity, parse_date, parse_price,
-)
+from app.common import EXPENSE_HEADERS, MEMBER_HEADERS, SHEET_EXPENSES, SHEET_MEMBERS, SHEET_VISITORS, SHEET_BUDGET, VISITOR_HEADERS, Expense, field_for_header, format_quantity, parse_date, parse_price
 
 DATE_NUMBER_FORMAT = "DD/MM/YYYY"
 MONEY_NUMBER_FORMAT = '"€" #,##0.00'
 
-_EXPENSE_FIELDS = (  # (veld, kolomkop, kolombreedte)
+_EXPENSE_FIELDS = (
     ("datum", "Datum", 15),
     ("item", "Item", 30),
     ("aantal", "Aantal", 10),
@@ -30,10 +26,8 @@ _EXPENSE_FIELDS = (  # (veld, kolomkop, kolombreedte)
 FILL_PAID   = PatternFill("solid", fgColor="E2F4E6")
 FILL_UNPAID = PatternFill("solid", fgColor="FBE3E3")
 
-
 class StorageError(Exception):
-    """Fout met een boodschap die rechtstreeks aan de gebruiker getoond mag worden."""
-
+    pass
 
 def _number_or_text(text: Any) -> Any:
     s = str(text).strip() if text is not None else ""
@@ -48,14 +42,12 @@ def _number_or_text(text: Any) -> Any:
     except ValueError:
         return s
 
-
 class BudgetStore:
     REST_COL = 11
 
     def __init__(self, path: Path | str):
         self.path = Path(path)
 
-    # ------------------------------------------------------------------ basis
     def _open(self, data_only: bool = True):
         try:
             return load_workbook(self.path, data_only=data_only)
@@ -63,21 +55,18 @@ class BudgetStore:
             raise StorageError("Geen toegang tot het Excel-bestand. Sluit het in Excel en probeer opnieuw.") from exc
         except FileNotFoundError as exc:
             raise StorageError(f"Bestand niet gevonden: {self.path}") from exc
-        except Exception as exc:  # beschadigd bestand, geen xlsx, ...
+        except Exception as exc:
             raise StorageError(f"Kan het Excel-bestand niet lezen: {exc}") from exc
 
     @contextmanager
     def _edit(self):
-        """Opent het bestand om te wijzigen; slaat op als het blok zonder fout eindigt."""
         wb = self._open(data_only=False)
         try:
             yield wb
             try:
                 wb.save(self.path)
             except PermissionError as exc:
-                raise StorageError(
-                    "Het Excel-bestand is geopend in een ander programma. Sluit het en probeer opnieuw."
-                ) from exc
+                raise StorageError("Het Excel-bestand is geopend in een ander programma. Sluit het en probeer opnieuw.") from exc
         finally:
             wb.close()
 
@@ -90,7 +79,6 @@ class BudgetStore:
             wb.close()
 
     def read_table(self, sheet_name: str) -> tuple[list[str], list[tuple[int, list[Any]]]]:
-        """Geeft (kopteksten, [(excel_rijnummer, waarden)]) en slaat volledig lege rijen over."""
         wb = self._open()
         try:
             if sheet_name not in wb.sheetnames:
@@ -101,15 +89,10 @@ class BudgetStore:
         if not all_rows:
             return [], []
         headers = [str(c).strip() if c is not None else "" for c in all_rows[0]]
-        rows = [
-            (r, list(values))
-            for r, values in enumerate(all_rows[1:], start=2)
-            if not all(v in (None, "") for v in values)
-        ]
+        rows = [(r, list(values)) for r, values in enumerate(all_rows[1:], start=2) if not all(v in (None, "") for v in values)]
         return headers, rows
 
-    def set_column_value(self, sheet_name: str, rows: list[int], col: int, value: Any,
-                     number_format: Optional[str] = None) -> None:
+    def set_column_value(self, sheet_name: str, rows: list[int], col: int, value: Any, number_format: Optional[str] = None) -> None:
         with self._edit() as wb:
             ws = wb[sheet_name]
             for r in rows:
@@ -125,7 +108,6 @@ class BudgetStore:
             if isBetaling:
                 cell.fill = FILL_PAID if str(value).lower() == "ja" else FILL_UNPAID
 
-    # ----------------------------------------------------------------- leden
     def member_names(self) -> list[str]:
         names: set[str] = set()
         wb = self._open()
@@ -160,7 +142,6 @@ class BudgetStore:
             wb.close()
         return sorted(names, key=str.lower)
 
-    # ------------------------------------------------------ fourage & bezoekers
     @staticmethod
     def _make_visitors_sheet(wb):
         ws = wb.create_sheet(SHEET_VISITORS)
@@ -172,9 +153,7 @@ class BudgetStore:
         ws.freeze_panes = "A2"
         return ws
 
-    def add_visitor(self, voornaam: str, achternaam: str, kostprijs: float, betaald: bool,
-                    alcohol: bool = False, sterke_drank: bool = False) -> None:
-        """Voegt een persoon toe; het tabblad wordt aangemaakt als het (in oudere bestanden) nog ontbreekt."""
+    def add_visitor(self, voornaam: str, achternaam: str, kostprijs: float, betaald: bool, alcohol: bool = False, sterke_drank: bool = False) -> None:
         with self._edit() as wb:
             ws = wb[SHEET_VISITORS] if SHEET_VISITORS in wb.sheetnames else self._make_visitors_sheet(wb)
             row = self._last_data_row(ws) + 1
@@ -184,11 +163,9 @@ class BudgetStore:
             ws.cell(row=row, column=4, value="Ja" if betaald else "Nee")
             ws.cell(row=row, column=5, value="Ja" if alcohol else "Nee")
             ws.cell(row=row, column=6, value="Ja" if sterke_drank else "Nee")
-
             ws.cell(row=row, column=4).fill = FILL_PAID if betaald else FILL_UNPAID
 
-    def update_visitor(self, row: int, voornaam: str, achternaam: str, kostprijs: float, betaald: bool,
-                       alcohol: bool = False, sterke_drank: bool = False) -> None:
+    def update_visitor(self, row: int, voornaam: str, achternaam: str, kostprijs: float, betaald: bool, alcohol: bool = False, sterke_drank: bool = False) -> None:
         with self._edit() as wb:
             ws = wb[SHEET_VISITORS]
             old_voornaam = str(ws.cell(row=row, column=1).value or "").strip()
@@ -201,7 +178,6 @@ class BudgetStore:
             ws.cell(row=row, column=4, value="Ja" if betaald else "Nee")
             ws.cell(row=row, column=5, value="Ja" if alcohol else "Nee")
             ws.cell(row=row, column=6, value="Ja" if sterke_drank else "Nee")
-
             ws.cell(row=row, column=4).fill = FILL_PAID if betaald else FILL_UNPAID
 
         new_name = f"{voornaam} {achternaam}".strip()
@@ -237,12 +213,10 @@ class BudgetStore:
             for e in expenses:
                 if e.naam.strip().lower() in deleted_names:
                     e.categorie = "Algemeen"
-                    e.naam = ""  # Maakt de naam leeg
+                    e.naam = ""
                     e.betaald = False
                     self.update_expense(e)
 
-
-    # --------------------------------------------------------------- uitgaven
     @staticmethod
     def _get_expense_sheet(wb):
         if SHEET_EXPENSES in wb.sheetnames:
@@ -255,8 +229,6 @@ class BudgetStore:
 
     @staticmethod
     def _ensure_expense_columns(ws) -> dict[str, int]:
-        """Geeft {veld: kolomnummer}. Ontbrekende kolommen (bv. Categorie/Naam in oudere
-        bestanden) worden achteraan de kopregel toegevoegd."""
         cols: dict[str, int] = {}
         last_used = 0
         for idx, cell in enumerate(ws[1], start=1):
@@ -291,7 +263,7 @@ class BudgetStore:
             "aantal": _number_or_text(e.aantal),
             "prijs": float(e.prijs),
             "categorie": e.categorie or None,
-            "naam": e.naam.strip() if e.naam else "",  # Gebruik "" in plaats van None zodat de cel echt leeg wordt
+            "naam": e.naam.strip() if e.naam else "",
             "betaald": ("Ja" if e.betaald else "Nee") if e.is_personal else None,
         }
         for field, col in cols.items():
@@ -306,7 +278,7 @@ class BudgetStore:
             if e.is_personal:
                 cell.fill = FILL_PAID if e.betaald else FILL_UNPAID
             else:
-                cell.fill = PatternFill()  # reset naar geen vulling
+                cell.fill = PatternFill()
 
     def read_expenses(self) -> list[Expense]:
         headers, rows = self.read_table(SHEET_EXPENSES)
@@ -359,20 +331,16 @@ class BudgetStore:
     def delete_expenses(self, rows: list[int]) -> None:
         with self._edit() as wb:
             ws = wb[SHEET_EXPENSES]
-            for r in sorted(set(rows), reverse=True):  # van onder naar boven: rijnummers verschuiven niet
+            for r in sorted(set(rows), reverse=True):
                 ws.delete_rows(r)
 
-    # -------------------------------------------------- personen met drankinfo
     def read_persons_with_drinks(self) -> list[dict]:
-        """Geeft een lijst van dicts met naam, kostprijs, alcohol, sterke_drank, sheet.
-        Leest zowel de ledenlijst als de fourage/bezoekerslijst uit."""
         result = []
         for sheet_name in (SHEET_MEMBERS, SHEET_VISITORS):
             headers, rows = self.read_table(sheet_name)
             if not headers:
                 continue
             low = [h.lower() for h in headers]
-            # kolomindices opzoeken
             kost_idx = next((i for i, h in enumerate(low) if "kostprijs" in h), -1)
             first_idx = next((i for i, h in enumerate(low) if h == "voornaam"), -1)
             last_idx = next((i for i, h in enumerate(low) if "achternaam" in h or "familienaam" in h), -1)
@@ -398,7 +366,6 @@ class BudgetStore:
                 branch_parts = [p.strip() for p in takken.split(",")]
                 is_leiding = "leiding" in branch_parts
 
-                # Gewone leden krijgen in de backend nooit alcohol of sterke drank
                 if sheet_name == SHEET_MEMBERS and not is_leiding:
                     alcohol = False
                     sterke_drank = False
@@ -416,10 +383,8 @@ class BudgetStore:
                 })
         return result
 
-    # ------------------------------------------------------------ nieuw budget
     @staticmethod
     def create_new(file_path: Path | str, members: list[list[str]]) -> None:
-        """members: [[voornaam, achternaam, takken], ...]"""
         wb = Workbook()
         ws_m = wb.active
         ws_m.title = SHEET_MEMBERS
@@ -452,9 +417,7 @@ class BudgetStore:
         finally:
             wb.close()
 
-    # ------------------------------------------------------------ Overzicht budget
     def write_summary(self, s, person_rows) -> None:
-        """Schrijft de budgettering naar een apart tabblad 'Overzicht' in het Excel-bestand."""
         with self._edit() as wb:
             if SHEET_BUDGET in wb.sheetnames:
                 del wb[SHEET_BUDGET]
@@ -467,7 +430,6 @@ class BudgetStore:
             header_fill = PatternFill("solid", fgColor="E8F3EC")
             right = Alignment(horizontal="right")
 
-            # ---- Financieel overzicht ----
             ws.column_dimensions["A"].width = 30
             ws.column_dimensions["B"].width = 18
 
@@ -515,27 +477,22 @@ class BudgetStore:
             ws.append([])
             ws.append([])
 
-            # ---- Kostprijs per persoon ----
             ws.append(["Kostprijs per persoon"])
             ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=14, color="185C37")
             ws.append([])
 
-            # Kolombreedtes voor de persoonentabel
             for col_letter, width in zip("CDEFGHIJK", (24, 18, 14, 14, 14, 14, 14, 14, 14)):
                 ws.column_dimensions[col_letter].width = width
 
-            # Header rij
-            headers = ["Naam", "Groep", "Basis", "Drank", "Persoonlijk", "Totaal",
-                       "Nog te betalen", "Basis betaald?", "Rest betaald?"]
+            headers = ["Naam", "Groep", "Basis", "Drank", "Persoonlijk", "Totaal", "Nog te betalen", "Basis betaald?", "Rest betaald?"]
             header_row = ws.max_row + 1
             for i, h in enumerate(headers, start=3):
                 cell = ws.cell(row=header_row, column=i, value=h)
                 cell.font = bold
                 cell.fill = header_fill
                 cell.alignment = right if i > 4 else Alignment(horizontal="left")
-            ws.append([])  # advance max_row
+            ws.append([])
 
-            # Data rijen
             from app.common import SHEET_MEMBERS
             for pr in person_rows:
                 groep = "Leiding" if pr.sheet == SHEET_MEMBERS else "Fourage/Bezoeker"
@@ -543,19 +500,16 @@ class BudgetStore:
                 data_row = ws.max_row + 1
                 ws.cell(row=data_row, column=3, value=pr.naam)
                 ws.cell(row=data_row, column=4, value=groep)
-                # Kolommen 5-8: Basis, Drank, Persoonlijk, Totaal
                 for col, val in zip([5, 6, 7, 8], [pr.kostprijs_base, drank, pr.persoonlijk_aandeel, pr.kostprijs_totaal]):
                     cell = ws.cell(row=data_row, column=col, value=val)
                     cell.number_format = MONEY_NUMBER_FORMAT
                     cell.alignment = right
                 ws.cell(row=data_row, column=8).font = bold
 
-                # Kolom 9: Nog te betalen
                 ntb_cell = ws.cell(row=data_row, column=9, value=pr.nog_te_betalen)
                 ntb_cell.number_format = MONEY_NUMBER_FORMAT
                 ntb_cell.alignment = right
 
-                # Kolom 10: Betaald?
                 betaald_tekst = "Ja" if pr.basis_betaald else "Nee"
                 betaald_cell = ws.cell(row=data_row, column=10, value=betaald_tekst)
                 betaald_cell.font = Font(bold=False, color="1F6B3A" if pr.basis_betaald else "C00000")
@@ -565,7 +519,6 @@ class BudgetStore:
 
                 ws.append([])
 
-            # Totaalrij
             if person_rows:
                 total_row = ws.max_row + 1
                 ws.cell(row=total_row, column=3, value="Totaal").font = bold
@@ -591,7 +544,6 @@ class BudgetStore:
                 ws.cell(row=total_row, column=self.REST_COL).fill = header_fill
                 ws.append([])
 
-    # ------------------------------------------------ "Rest betaald?" (Overzicht)
     @staticmethod
     def _style_rest_cell(cell, betaald: bool) -> None:
         cell.value = "Ja" if betaald else "Nee"
@@ -600,7 +552,6 @@ class BudgetStore:
         cell.alignment = Alignment(horizontal="center")
 
     def read_rest_betaald(self) -> dict[str, bool]:
-        """{naam.lower(): bool} uit de persoonstabel van het tabblad Overzicht."""
         wb = self._open()
         try:
             if SHEET_BUDGET not in wb.sheetnames:

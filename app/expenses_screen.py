@@ -1,4 +1,3 @@
-"""Tabblad 'Uitgaven': overzicht met datum, item, aantal, prijs, categorie en (bij Persoonlijk) naam."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -12,7 +11,6 @@ from app.expense_dialog import ExpenseDialog
 from app.storage import BudgetStore, StorageError
 from app.ticket_dialog import TicketDialog
 from app.ui import ERROR_RED, FONT_BASE, FONT_SM, RIBBON_BG, GRID_LINE, TEXT_MUTED, DataTree
-
 
 class ExpensesTab(tk.Frame):
     COLUMN_WIDTHS = [110, 300, 80, 130, 140, 220, 110]
@@ -31,13 +29,11 @@ class ExpensesTab(tk.Frame):
 
         bottom = tk.Frame(self, bg=RIBBON_BG, highlightthickness=1, highlightbackground=GRID_LINE)
         bottom.pack(fill="x", side="bottom")
-        self.lbl_total = tk.Label(bottom, text="Totale uitgaven: € 0,00", bg=RIBBON_BG,
-                                  font=(*FONT_BASE, "bold"), fg=ERROR_RED, padx=12, pady=6)
+        self.lbl_total = tk.Label(bottom, text="Totale uitgaven: € 0,00", bg=RIBBON_BG, font=(*FONT_BASE, "bold"), fg=ERROR_RED, padx=12, pady=6)
         self.lbl_total.pack(side="right", padx=10)
         self.lbl_personal = tk.Label(bottom, text="", bg=RIBBON_BG, fg=TEXT_MUTED, font=FONT_SM, padx=12)
         self.lbl_personal.pack(side="left")
 
-        # 'extended': klik, Shift+klik (aaneengesloten reeks) en Ctrl+klik (losse rijen)
         self.table = DataTree(self, selectmode="extended")
         self.table.configure_columns(EXPENSE_COLUMNS, widths=self.COLUMN_WIDTHS)
         self.table.pack(fill="both", expand=True)
@@ -47,12 +43,10 @@ class ExpensesTab(tk.Frame):
         tree.bind("<Delete>", lambda _e: self._delete_selected())
         tree.bind("<Control-a>", self._select_all)
 
-        # 'Betaald?' van persoonlijke items: klik op de cel om Ja/Nee te kiezen
         self.betaald_idx = EXPENSE_COLUMNS.index("Betaald?")
         tree.bind("<Button-1>", self._on_click, add="+")
         tree.bind("<Motion>", self._update_cursor, add="+")
 
-    # ------------------------------------------------------------------ laden
     def refresh(self) -> None:
         try:
             expenses = self.store.read_expenses()
@@ -62,8 +56,6 @@ class ExpensesTab(tk.Frame):
         expenses.sort(key=lambda e: (e.datum or datetime.min, e.row or 0))
         self._by_row = {e.row: e for e in expenses if e.row}
         self.table.fill([(str(e.row), expense_row_values(e)) for e in expenses])
-
-        # Totaal van alle items die nog meegerekend worden (Algemeen/Alcohol/Sterke Drank + Onbetaald Persoonlijk)
         counted = sum(e.prijs for e in expenses if e.counts_in_total)
         self.lbl_total.config(text=f"Totale uitgaven: {format_money(counted)}")
 
@@ -73,7 +65,6 @@ class ExpensesTab(tk.Frame):
         except StorageError:
             return []
 
-    # ------------------------------------------------------------------ acties
     def _add_manual(self) -> None:
         dlg = ExpenseDialog(self, "Handmatig uitgave toevoegen", member_names=self._member_names())
         self.wait_window(dlg)
@@ -117,8 +108,7 @@ class ExpensesTab(tk.Frame):
             messagebox.showwarning("Waarschuwing", "Selecteer een uitgave om te verwijderen.", parent=self)
             return
         n = len(selected)
-        question = ("Weet je zeker dat je deze uitgave wilt verwijderen?" if n == 1
-                    else f"Weet je zeker dat je deze {n} uitgaven wilt verwijderen?")
+        question = ("Weet je zeker dat je deze uitgave wilt verwijderen?" if n == 1 else f"Weet je zeker dat je deze {n} uitgaven wilt verwijderen?")
         if not messagebox.askyesno("Bevestigen", question, parent=self):
             return
         try:
@@ -128,7 +118,6 @@ class ExpensesTab(tk.Frame):
             return
         self.refresh()
 
-    # --------------------------------------------------------------- gebeurtenissen
     def _on_double_click(self, event: tk.Event) -> None:
         tree = self.table.tree
         if tree.identify_region(event.x, event.y) in ("heading", "separator"):
@@ -141,9 +130,7 @@ class ExpensesTab(tk.Frame):
         tree.selection_set(tree.get_children())
         return "break"
 
-    # ------------------------------------------------------- betaald (persoonlijk)
     def _paid_cell(self, event: tk.Event) -> Optional[Expense]:
-        """De uitgave onder de muis, maar alleen als het de 'Betaald?'-cel van een persoonlijk item is."""
         tree = self.table.tree
         if tree.identify_region(event.x, event.y) != "cell":
             return None

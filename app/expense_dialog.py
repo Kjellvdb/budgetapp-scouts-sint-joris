@@ -1,4 +1,3 @@
-"""Dialoog om één uitgave toe te voegen of te bewerken, met naam-autocomplete voor 'Persoonlijk'."""
 from __future__ import annotations
 
 import difflib
@@ -10,12 +9,8 @@ from typing import Optional, Sequence
 from app.common import CATEGORIES, DATE_FORMAT, Expense, format_money, parse_date, parse_price
 from app.ui import EXCEL_GREEN_DARK, FONT_BASE, FONT_H3, FONT_SM, GRID_LINE, ROW_SELECTED, center_on_parent
 
-
 class NameAutocomplete(ttk.Entry):
-    """Tekstveld dat tijdens het typen de 3 best passende namen toont als klikbare lijst."""
-
-    def __init__(self, parent: tk.Misc, textvariable: tk.StringVar, names: Sequence[str],
-                 max_suggestions: int = 3, **kw):
+    def __init__(self, parent: tk.Misc, textvariable: tk.StringVar, names: Sequence[str], max_suggestions: int = 3, **kw):
         super().__init__(parent, textvariable=textvariable, **kw)
         self.var = textvariable
         self.names = list(names)
@@ -29,7 +24,6 @@ class NameAutocomplete(ttk.Entry):
         self.bind("<Escape>", self._on_escape, add="+")
         self.bind("<FocusOut>", lambda e: self.after(150, self._hide_if_unfocused), add="+")
 
-    # --------------------------------------------------------------- zoeken
     def best_matches(self, text: str) -> list[str]:
         t = text.strip().lower()
         if not t:
@@ -45,8 +39,7 @@ class NameAutocomplete(ttk.Entry):
             elif t in nl:
                 score = 2.0
             else:
-                ratio = max([difflib.SequenceMatcher(None, t, nl).ratio()]
-                            + [difflib.SequenceMatcher(None, t, w).ratio() for w in words])
+                ratio = max([difflib.SequenceMatcher(None, t, nl).ratio()] + [difflib.SequenceMatcher(None, t, w).ratio() for w in words])
                 if ratio < 0.7:
                     continue
                 score = 3.0 + (1.0 - ratio)
@@ -54,15 +47,9 @@ class NameAutocomplete(ttk.Entry):
         scored.sort()
         return [name for _s, _n, name in scored[: self.max_suggestions]]
 
-    # ------------------------------------------------------------ keuzelijst
     def _ensure_listbox(self) -> tk.Listbox:
         if self._listbox is None:
-            self._listbox = tk.Listbox(
-                self.winfo_toplevel(), height=self.max_suggestions, font=FONT_BASE,
-                activestyle="none", exportselection=False, takefocus=0,
-                highlightthickness=1, highlightbackground=GRID_LINE,
-                selectbackground=ROW_SELECTED, selectforeground="black",
-            )
+            self._listbox = tk.Listbox(self.winfo_toplevel(), height=self.max_suggestions, font=FONT_BASE, activestyle="none", exportselection=False, takefocus=0, highlightthickness=1, highlightbackground=GRID_LINE, selectbackground=ROW_SELECTED, selectforeground="black")
             self._listbox.bind("<Button-1>", self._on_click)
         return self._listbox
 
@@ -98,10 +85,8 @@ class NameAutocomplete(ttk.Entry):
         self.focus_set()
         self.icursor("end")
 
-    # ------------------------------------------------------------ gebeurtenissen
     def _on_key_release(self, event: tk.Event) -> None:
-        if event.keysym in ("Up", "Down", "Return", "Escape", "Tab", "Left", "Right",
-                            "Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R"):
+        if event.keysym in ("Up", "Down", "Return", "Escape", "Tab", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R"):
             return
         text = self.var.get()
         matches = self.best_matches(text)
@@ -139,14 +124,10 @@ class NameAutocomplete(ttk.Entry):
             self._choose(self._listbox.get(idx))
         return "break"
 
-
 class ExpenseDialog(tk.Toplevel):
-    """Na wait_window() bevat `result` een Expense, of None bij annuleren."""
-
     WIDTH, HEIGHT = 540, 580
 
-    def __init__(self, parent: tk.Misc, title: str, expense: Optional[Expense] = None,
-                 member_names: Optional[Sequence[str]] = None):
+    def __init__(self, parent: tk.Misc, title: str, expense: Optional[Expense] = None, member_names: Optional[Sequence[str]] = None):
         owner = parent.winfo_toplevel()
         super().__init__(owner)
         self.title(title)
@@ -158,14 +139,13 @@ class ExpenseDialog(tk.Toplevel):
         self._row = expense.row if expense else None
         member_names = list(member_names or [])
 
-        e = expense
-        self.v_datum = tk.StringVar(value=(e.datum_display if e and e.datum_display else datetime.now().strftime(DATE_FORMAT)))
-        self.v_item = tk.StringVar(value=e.item if e else "")
-        self.v_aantal = tk.StringVar(value=e.aantal if e and e.aantal else "1")
-        self.v_prijs = tk.StringVar(value=format_money(e.prijs if e else 0.0))
-        self.v_categorie = tk.StringVar(value=e.categorie if e and e.categorie in CATEGORIES else "Algemeen")
-        self.v_naam = tk.StringVar(value=e.naam if e else "")
-        self.v_betaald = tk.StringVar(value="Ja" if e and e.betaald else "Nee")
+        self.v_datum = tk.StringVar(value=(expense.datum_display if expense and expense.datum_display else datetime.now().strftime(DATE_FORMAT)))
+        self.v_item = tk.StringVar(value=expense.item if expense else "")
+        self.v_aantal = tk.StringVar(value=expense.aantal if expense and expense.aantal else "1")
+        self.v_prijs = tk.StringVar(value=format_money(expense.prijs if expense else 0.0))
+        self.v_categorie = tk.StringVar(value=expense.categorie if expense and expense.categorie in CATEGORIES else "Algemeen")
+        self.v_naam = tk.StringVar(value=expense.naam if expense else "")
+        self.v_betaald = tk.StringVar(value="Ja" if expense and expense.betaald else "Nee")
 
         tk.Label(self, text=title, bg="white", fg=EXCEL_GREEN_DARK, font=FONT_H3).pack(pady=10)
         form = tk.Frame(self, bg="white", padx=20)
@@ -184,8 +164,7 @@ class ExpenseDialog(tk.Toplevel):
         ttk.Entry(row("Aantal:"), textvariable=self.v_aantal, font=font).pack(side="right", fill="x", expand=True)
         ttk.Entry(row("Totale prijs:"), textvariable=self.v_prijs, font=font).pack(side="right", fill="x", expand=True)
 
-        combo = ttk.Combobox(row("Categorie:"), textvariable=self.v_categorie, values=CATEGORIES,
-                             state="readonly", font=font)
+        combo = ttk.Combobox(row("Categorie:"), textvariable=self.v_categorie, values=CATEGORIES, state="readonly", font=font)
         combo.pack(side="right", fill="x", expand=True)
         combo.bind("<<ComboboxSelected>>", lambda _e: self._toggle_name_field())
 
@@ -194,8 +173,7 @@ class ExpenseDialog(tk.Toplevel):
         self.name_entry.pack(side="right", fill="x", expand=True)
 
         self.betaald_row = row("Betaald?")
-        ttk.Combobox(self.betaald_row, textvariable=self.v_betaald, values=["Ja", "Nee"],
-                     state="readonly", font=font).pack(side="right", fill="x", expand=True)
+        ttk.Combobox(self.betaald_row, textvariable=self.v_betaald, values=["Ja", "Nee"], state="readonly", font=font).pack(side="right", fill="x", expand=True)
 
         btn_box = tk.Frame(self, bg="white", pady=15, padx=20)
         btn_box.pack(fill="x", side="bottom")
@@ -244,9 +222,5 @@ class ExpenseDialog(tk.Toplevel):
             messagebox.showwarning("Waarschuwing", "Selecteer of vul een naam in voor de categorie Persoonlijk.", parent=self)
             return
 
-        self.result = Expense(
-            datum=datum, item=item, aantal=self.v_aantal.get().strip() or "1",
-            prijs=prijs, categorie=categorie, naam=naam, row=self._row,
-            betaald=bool(naam) and self.v_betaald.get() == "Ja",
-        )
+        self.result = Expense(datum=datum, item=item, aantal=self.v_aantal.get().strip() or "1", prijs=prijs, categorie=categorie, naam=naam, row=self._row, betaald=bool(naam) and self.v_betaald.get() == "Ja")
         self.destroy()

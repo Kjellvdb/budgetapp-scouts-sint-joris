@@ -7,13 +7,9 @@ from app.income_screen import IncomeTab
 from app.storage import BudgetStore, StorageError
 from app.visitor_dialog import VisitorDialog
 
-
 class VisitorsTab(IncomeTab):
     def __init__(self, parent: tk.Misc, store: BudgetStore):
-        super().__init__(parent, store, sheet_name=SHEET_VISITORS,
-                         total_label="Totale inkomsten fourage & bezoekers",
-                         default_headers=VISITOR_HEADERS,
-                         selectmode="extended")
+        super().__init__(parent, store, sheet_name=SHEET_VISITORS, total_label="Totale inkomsten fourage & bezoekers", default_headers=VISITOR_HEADERS, selectmode="extended")
         self._by_row: dict[int, tuple[str, str, float, bool, bool, bool]] = {}
 
         toolbar = tk.Frame(self, bg="white", padx=8, pady=8)
@@ -52,7 +48,7 @@ class VisitorsTab(IncomeTab):
         try:
             voornaam, achternaam, prijs, betaald, alcohol, sterke_drank = dlg.result
             self.store.add_visitor(voornaam, achternaam, prijs, betaald, alcohol, sterke_drank)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             messagebox.showerror("Fout", f"Opslaan mislukt: {exc}", parent=self)
             return
         self.refresh()
@@ -73,7 +69,7 @@ class VisitorsTab(IncomeTab):
         try:
             voornaam, achternaam, prijs, betaald, alcohol, sterke_drank = dlg.result
             self.store.update_visitor(row_id, voornaam, achternaam, prijs, betaald, alcohol, sterke_drank)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             messagebox.showerror("Fout", f"Bewerken mislukt: {exc}", parent=self)
             return
         self.refresh()
@@ -84,13 +80,12 @@ class VisitorsTab(IncomeTab):
             messagebox.showwarning("Waarschuwing", "Selecteer een persoon om te verwijderen.", parent=self)
             return
         n = len(selected)
-        question = ("Weet je zeker dat je deze persoon wilt verwijderen?" if n == 1
-                    else f"Weet je zeker dat je deze {n} personen wilt verwijderen?")
+        question = ("Weet je zeker dat je deze persoon wilt verwijderen?" if n == 1 else f"Weet je zeker dat je deze {n} personen wilt verwijderen?")
         if not messagebox.askyesno("Bevestigen", question, parent=self):
             return
         try:
             self.store.delete_visitors([int(i) for i in selected])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             messagebox.showerror("Fout", f"Verwijderen mislukt: {exc}", parent=self)
             return
         self.refresh()

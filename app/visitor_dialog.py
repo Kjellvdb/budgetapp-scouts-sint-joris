@@ -1,4 +1,3 @@
-"""Dialoog om één persoon aan de fourage- en bezoekerslijst toe te voegen."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -8,14 +7,10 @@ from typing import Optional
 from app.common import format_money, parse_price
 from app.ui import EXCEL_GREEN_DARK, FONT_BASE, FONT_H3, center_on_parent
 
-
 class VisitorDialog(tk.Toplevel):
-    """Na wait_window() bevat `result` (voornaam, achternaam, kostprijs, betaald) of None bij annuleren."""
-
     WIDTH, HEIGHT = 520, 520
 
-    def __init__(self, parent: tk.Misc, title: str = "Persoon toevoegen",
-                 visitor: Optional[tuple[str, str, float, bool, bool, bool]] = None):
+    def __init__(self, parent: tk.Misc, title: str = "Persoon toevoegen", visitor: Optional[tuple[str, str, float, bool, bool, bool]] = None):
         owner = parent.winfo_toplevel()
         super().__init__(owner)
         self.title(title)
@@ -31,8 +26,7 @@ class VisitorDialog(tk.Toplevel):
         self.v_alcohol = tk.StringVar(value="Ja" if visitor and visitor[4] else "Nee")
         self.v_sterke_drank = tk.StringVar(value="Ja" if visitor and visitor[5] else "Nee")
 
-        tk.Label(self, text="Persoon toevoegen", bg="white", fg=EXCEL_GREEN_DARK,
-                 font=FONT_H3).pack(pady=10)
+        tk.Label(self, text="Persoon toevoegen", bg="white", fg=EXCEL_GREEN_DARK, font=FONT_H3).pack(pady=10)
         form = tk.Frame(self, bg="white", padx=20)
         form.pack(fill="x", expand=True)
 
@@ -46,14 +40,10 @@ class VisitorDialog(tk.Toplevel):
         self.entry_first = ttk.Entry(row("Voornaam:"), textvariable=self.v_voornaam, font=font)
         self.entry_first.pack(side="right", fill="x", expand=True)
         ttk.Entry(row("Achternaam:"), textvariable=self.v_achternaam, font=font).pack(side="right", fill="x", expand=True)
-        ttk.Entry(row("Kostprijs weekend/kamp:"), textvariable=self.v_prijs, font=font).pack(
-            side="right", fill="x", expand=True)
-        ttk.Combobox(row("Weekend/kamp betaald?"), textvariable=self.v_betaald, values=["Ja", "Nee"],
-                     state="readonly", font=font).pack(side="right", fill="x", expand=True)
-        ttk.Combobox(row("Alcohol gedronken?"), textvariable=self.v_alcohol, values=["Ja", "Nee"],
-                     state="readonly", font=font).pack(side="right", fill="x", expand=True)
-        ttk.Combobox(row("Sterke drank gedronken?"), textvariable=self.v_sterke_drank, values=["Ja", "Nee"],
-                     state="readonly", font=font).pack(side="right", fill="x", expand=True)
+        ttk.Entry(row("Kostprijs weekend/kamp:"), textvariable=self.v_prijs, font=font).pack(side="right", fill="x", expand=True)
+        ttk.Combobox(row("Weekend/kamp betaald?"), textvariable=self.v_betaald, values=["Ja", "Nee"], state="readonly", font=font).pack(side="right", fill="x", expand=True)
+        ttk.Combobox(row("Alcohol gedronken?"), textvariable=self.v_alcohol, values=["Ja", "Nee"], state="readonly", font=font).pack(side="right", fill="x", expand=True)
+        ttk.Combobox(row("Sterke drank gedronken?"), textvariable=self.v_sterke_drank, values=["Ja", "Nee"], state="readonly", font=font).pack(side="right", fill="x", expand=True)
 
         btn_box = tk.Frame(self, bg="white", pady=15, padx=20)
         btn_box.pack(fill="x", side="bottom")
@@ -78,8 +68,5 @@ class VisitorDialog(tk.Toplevel):
         if prijs is None:
             messagebox.showwarning("Waarschuwing", "Ongeldige prijs. Gebruik bv. 25 of €25,50.", parent=self)
             return
-        self.result = (voornaam, achternaam, prijs,
-                       self.v_betaald.get() == "Ja",
-                       self.v_alcohol.get() == "Ja",
-                       self.v_sterke_drank.get() == "Ja")
+        self.result = (voornaam, achternaam, prijs, self.v_betaald.get() == "Ja", self.v_alcohol.get() == "Ja", self.v_sterke_drank.get() == "Ja")
         self.destroy()

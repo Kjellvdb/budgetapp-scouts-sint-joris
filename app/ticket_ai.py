@@ -1,4 +1,3 @@
-"""Leest een foto van een kasticket uit met de Groq-API en geeft Expense-objecten terug."""
 from __future__ import annotations
 
 import base64
@@ -15,33 +14,29 @@ import collections
 import threading
 import time
 from groq import Groq
-
-from dotenv import load_dotenv
+from config import GROQ_API_KEY
 
 from app.common import AI_CATEGORIES, Expense, format_money, format_quantity, parse_date, parse_price
 
-load_dotenv()
-
-DEFAULT_MODEL = "qwen/qwen3.8-27b"   # overschrijfbaar via GROQ_MODEL in het .env-bestand
-MAX_IMAGE_BYTES = 4 * 1024 * 1024    # limiet van Groq voor base64-afbeeldingen
+DEFAULT_MODEL = "qwen/qwen3.8-27b"
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
 MAX_IMAGES = 10
-STRIP_RATIO = 1.0      # stroohoogte = breedte x 1.0
-STRIP_OVERLAP = 0.12   # overlap tussen stroken
-TARGET_WIDTH = 1000    # kleinere foto's worden hiertoe vergroot (leesbare tekst)
-MAX_WIDTH = 1000       # grotere foto's worden hiertoe verkleind
-MAX_STRIPS = 30        # maximum aantal API-aanroepen per ticket
-TAIL_SIZE = 6          # aantal laatste regels van de vorige strook waarmee gededupliceerd wordt
-DEFAULT_SLOTS = 2      # verwacht aantal stroken per minuut zolang er nog niets gemeten is
+STRIP_RATIO = 1.0
+STRIP_OVERLAP = 0.12
+TARGET_WIDTH = 1000
+MAX_WIDTH = 1000
+MAX_STRIPS = 30
+TAIL_SIZE = 6
+DEFAULT_SLOTS = 2
 
-LAST_WARNING = ""      # controlemelding van de laatste uitlezing (leeg = alles klopt)
+LAST_WARNING = ""
 
-MAX_PARALLEL = 2           # met een tokenlimiet heeft meer tegelijk weinig zin
-TOKENS_PER_MINUTE = 8000   # limiet van jouw model (zie Groq console > Limits)
-LIMIT_SAFETY = 0.99        # we benutten maximaal 99% van de limiet
-INITIAL_ESTIMATE = 2200    # geschat tokenverbruik per strook; wordt bijgesteld op basis van echt verbruik
-MAX_WAIT = 180             # langer wachten dan dit (sec) = waarschijnlijk dagelijkse limiet: stoppen
-MAX_TOTAL_WAIT = 600       # max totale tijd per strook (sec), inclusief wachten op de limiet
-
+MAX_PARALLEL = 2
+TOKENS_PER_MINUTE = 8000
+LIMIT_SAFETY = 0.99
+INITIAL_ESTIMATE = 2200
+MAX_WAIT = 180
+MAX_TOTAL_WAIT = 600
 
 PROMPT = (
     "STROOK van een kassaticket/factuur (bv. Colruyt). Negeer regels die aan de boven- of onderrand afgesneden zijn.\n"
@@ -59,17 +54,14 @@ PROMPT = (
     '"leeggoed_totaal":"0","btw_totaal":"0","totaal_goederen":"0","totaal_te_betalen":"0"}'
 )
 
-
 class TicketCancelled(Exception):
-    """Het uitlezen werd afgebroken (venster of app gesloten)."""
+    pass
 
 class _TokenLimiter:
-    """Houdt het tokenverbruik van de laatste 60 seconden bij en laat aanvragen wachten als het vol zit."""
-
     def __init__(self, per_minute: int):
         self.limit = per_minute
         self.lock = threading.Lock()
-        self.events: collections.deque = collections.deque()  # [tijdstip, tokens]
+        self.events: collections.deque = collections.deque()
         self.blocked_until = 0.0
         self.estimate = INITIAL_ESTIMATE
         self._seen: list[int] = []
@@ -80,7 +72,6 @@ class _TokenLimiter:
         return sum(e[1] for e in self.events)
 
     def acquire(self, on_wait=None, cancel: "threading.Event | None" = None) -> list:
-        """Wacht tot er ruimte is en reserveert dan het geschatte aantal tokens."""
         stop = cancel or threading.Event()
         while True:
             if stop.is_set():
@@ -98,11 +89,10 @@ class _TokenLimiter:
                     wait = 60 - (now - self.events[0][0]) + 0.5
             if on_wait:
                 on_wait(wait)
-            if stop.wait(min(max(wait, 0.5), 3)):   # slaapt, maar wordt meteen wakker bij annuleren
+            if stop.wait(min(max(wait, 0.5), 3)):
                 raise TicketCancelled()
 
     def record(self, event: list, actual: int | None) -> None:
-        """Vervangt de schatting door het echte verbruik (0 bij een mislukte aanvraag)."""
         with self.lock:
             if actual is None:
                 return
@@ -116,12 +106,9 @@ class _TokenLimiter:
         with self.lock:
             self.blocked_until = max(self.blocked_until, time.monotonic() + seconds + 0.5)
 
-
 LIMITER = _TokenLimiter(int(TOKENS_PER_MINUTE * LIMIT_SAFETY))
 
-
 def _retry_delay(exc: Exception) -> float | None:
-    """Aantal seconden wachten bij een rate-limit-fout, of None als het een andere fout is."""
     text = str(exc)
     if getattr(exc, "status_code", None) != 429 and "rate_limit" not in text.lower() and "429" not in text:
         return None
@@ -131,7 +118,6 @@ def _retry_delay(exc: Exception) -> float | None:
         for val, unit in re.findall(r"([\d.]+)\s*(ms|h|m|s)", m.group(1)):
             seconds += float(val) * {"h": 3600, "m": 60, "s": 1, "ms": 0.001}[unit]
     return seconds or 20.0
-
 
 def _parse_json(text: str):
     text = text.strip()
@@ -145,13 +131,10 @@ def _parse_json(text: str):
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # herstel: bedragen zoals  "totale_prijs": 5,65,  ->  "totale_prijs": "5,65",
         fixed = re.sub(r'(:\s*)(-?\d+,\d+)(\s*[,}\]])', r'\1"\2"\3', text)
         return json.loads(fixed)
 
-
 def _strip_parts(image_path: str) -> list[dict]:
-    """Knipt een foto in overlappende, vergrote stroken (als image_url-onderdelen)."""
     path = Path(image_path)
     img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
     w, h = img.size
@@ -181,23 +164,18 @@ def _strip_parts(image_path: str) -> list[dict]:
         parts.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
     return parts
 
-
 def _fmt_time(seconds: float) -> str:
     seconds = int(round(seconds))
     if seconds < 60:
         return f"{seconds}s"
     return f"{seconds // 60}min {seconds % 60:02d}s"
 
-
-def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progress=None,
-                                cancel: "threading.Event | None" = None) -> list[Expense]:
-    """Leest één of meerdere foto's die samen één ticket vormen, strook per strook."""
+def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progress=None, cancel: "threading.Event | None" = None) -> list[Expense]:
     cancel = cancel or threading.Event()
     global LAST_WARNING
     LAST_WARNING = ""
 
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
+    if not GROQ_API_KEY:
         raise RuntimeError("Geen GROQ_API_KEY gevonden in de .env file.")
 
     paths = [str(image_paths)] if isinstance(image_paths, (str, Path)) else [str(p) for p in image_paths]
@@ -210,10 +188,9 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
     for p in paths:
         strips.extend(_strip_parts(p))
     if len(strips) > MAX_STRIPS:
-        raise RuntimeError(f"Het ticket levert {len(strips)} stroken op (maximaal {MAX_STRIPS}). "
-                           "Gebruik minder of kleinere foto's.")
+        raise RuntimeError(f"Het ticket levert {len(strips)} stroken op (maximaal {MAX_STRIPS}). " "Gebruik minder of kleinere foto's.")
 
-    client = Groq(api_key=api_key, max_retries=0, timeout=30)
+    client = Groq(api_key=GROQ_API_KEY, max_retries=0, timeout=30)
     model = os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
 
     totals = {"leeggoed_totaal": 0.0, "btw_totaal": 0.0, "totaal_goederen": 0.0, "totaal_te_betalen": 0.0}
@@ -237,7 +214,6 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
         peak_slots[0] = max(peak_slots[0], sum(1 for t in list(finish_times) if now - t < 60))
 
     def eta_seconds() -> float:
-        """Schat hoelang het nog duurt tot ALLE resterende stroken klaar zijn."""
         remaining = total - done[0]
         if remaining <= 0:
             return 0.0
@@ -252,43 +228,37 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
                 t = max(t, window[0] + 60)
                 window.popleft()
             window.append(t)
-        return t + 3   # + de duur van de laatste aanvraag
+        return t + 3
 
     def ask(content: list[dict], json_mode: bool):
-        kwargs = {"model": model, "messages": [{"role": "user", "content": content}],
-                  "temperature": 0, "reasoning_effort": "none", "max_completion_tokens": 1200}
+        kwargs = {"model": model, "messages": [{"role": "user", "content": content}], "temperature": 0, "reasoning_effort": "none", "max_completion_tokens": 1200}
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
         deadline = time.monotonic() + MAX_TOTAL_WAIT
         while True:
             event = LIMITER.acquire(
-                on_wait=lambda w: say(
-                    f"⏸ Wachten op AI limiet... Nog ± {_fmt_time(max(eta_seconds(), w))}"
-                    f" ({done[0]}/{total} klaar)"),
-                cancel=cancel)
+                on_wait=lambda w: say(f"⏸ Wachten op AI limiet... Nog ± {_fmt_time(max(eta_seconds(), w))}" f" ({done[0]}/{total} klaar)"), cancel=cancel)
             if cancel.is_set():
                 LIMITER.record(event, 0)
                 raise TicketCancelled()
             t_call = time.monotonic()
             try:
                 response = client.chat.completions.create(**kwargs)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 LIMITER.record(event, 0)
                 if "reasoning_effort" in kwargs and "reasoning_effort" in str(exc):
-                    kwargs.pop("reasoning_effort")  # model weigert de parameter: opnieuw zonder
+                    kwargs.pop("reasoning_effort")
                     continue
                 wait = _retry_delay(exc)
                 if wait is None:
-                    transient = ((getattr(exc, "status_code", None) or 0) >= 500
-                                 or "Connection" in type(exc).__name__ or "Timeout" in type(exc).__name__)
+                    transient = ((getattr(exc, "status_code", None) or 0) >= 500 or "Connection" in type(exc).__name__ or "Timeout" in type(exc).__name__)
                     if transient and time.monotonic() < deadline:
-                        if cancel.wait(2):  # korte storing: opnieuw proberen
+                        if cancel.wait(2):
                             raise TicketCancelled()
                         continue
                     raise
                 if wait > MAX_WAIT or time.monotonic() + wait > deadline:
-                    raise RuntimeError(
-                        f"Limiet van Groq bereikt (probeer opnieuw over ± {int(wait // 60) + 1} min): {exc}") from exc
+                    raise RuntimeError(f"Limiet van Groq bereikt (probeer opnieuw over ± {int(wait // 60) + 1} min): {exc}") from exc
                 LIMITER.block(wait)
                 continue
             usage = getattr(response, "usage", None)
@@ -299,23 +269,17 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
         if cancel.is_set():
             raise TicketCancelled()
         i, part = args
-        content = [
-            {"type": "text", "text": PROMPT},
-            {"type": "text", "text": f"Strook {i} van {total}:"},
-            part,
-        ]
+        content = [{"type": "text", "text": PROMPT}, {"type": "text", "text": f"Strook {i} van {total}:"}, part]
         try:
             response = ask(content, json_mode=True)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if "json_validate_failed" not in str(exc):
                 raise
             response = ask(content, json_mode=False)
         done[0] += 1
         note_finished()
         remaining = total - done[0]
-        say(f"⏳ AI leest het ticket uit... "
-            + (f"Nog ± {_fmt_time(eta_seconds())} " if remaining else "")
-            + (f"({done[0]}/{total} klaar)"))
+        say(f"⏳ AI leest het ticket uit... " + (f"Nog ± {_fmt_time(eta_seconds())} " if remaining else "") + (f"({done[0]}/{total} klaar)"))
         return _parse_json(response.choices[0].message.content or "")
 
     t0 = time.monotonic()
@@ -324,10 +288,10 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
     try:
         results = list(pool.map(fetch, enumerate(strips, start=1)))
     except BaseException:
-        cancel.set()                # laat alle overige stroken meteen stoppen
+        cancel.set()
         raise
     finally:
-        pool.shutdown(wait=False)   # niet blijven hangen op lopende aanvragen
+        pool.shutdown(wait=False)
 
     for data in results:
         if isinstance(data, dict):
@@ -340,7 +304,7 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
                 if value and not totals[key]:
                     totals[key] = value
 
-        tail = list(prev_tail)   # regels van de vorige strook, waarmee we de overlap wegfilteren
+        tail = list(prev_tail)
         keys_this: list[tuple] = []
         for item in items:
             if not isinstance(item, dict):
@@ -353,18 +317,16 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
             qty = format_quantity(item.get("aantal")) or "1"
             key = (artnr or name.lower()[:12], qty, round(price, 2))
             keys_this.append(key)
-            if key in tail:          # zelfde regel stond al in de overlap van de vorige strook
+            if key in tail:
                 tail.remove(key)
                 continue
             category = item.get("categorie")
-            rows.append({"name": name, "qty": qty, "price": price,
-                         "cat": category if category in AI_CATEGORIES else "Algemeen"})
+            rows.append({"name": name, "qty": qty, "price": price, "cat": category if category in AI_CATEGORIES else "Algemeen"})
         prev_tail = keys_this[-TAIL_SIZE:]
 
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     when = found_date or today
-    expenses = [Expense(datum=when, item=r["name"], aantal=r["qty"], prijs=r["price"],
-                        categorie=r["cat"], naam="") for r in rows]
+    expenses = [Expense(datum=when, item=r["name"], aantal=r["qty"], prijs=r["price"], categorie=r["cat"], naam="") for r in rows]
 
     def close(a: float, b: float) -> bool:
         return abs(a - b) <= 0.05
@@ -376,8 +338,7 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
     te_betalen = totals["totaal_te_betalen"]
 
     if goederen and not close(items_sum, goederen):
-        LAST_WARNING = (f"Som van de items ({format_money(items_sum)}) wijkt af van 'totaal goederen' "
-                        f"op het ticket ({format_money(goederen)}). Controleer de rijen.")
+        LAST_WARNING = (f"Som van de items ({format_money(items_sum)}) wijkt af van 'totaal goederen' " f"op het ticket ({format_money(goederen)}). Controleer de rijen.")
 
     if leeggoed:
         expenses.append(Expense(datum=when, item="Leeggoed", aantal="1", prijs=leeggoed, categorie="Alcohol"))
@@ -386,8 +347,8 @@ def extract_expenses_from_image(image_paths: "str | Path | Sequence[str]", progr
         base = goederen or items_sum
         add_btw = True
         if te_betalen:
-            incl = close(base + leeggoed, te_betalen)         # BTW zit al in de prijzen
-            excl = close(base + leeggoed + btw, te_betalen)   # BTW komt er nog bovenop
+            incl = close(base + leeggoed, te_betalen)
+            excl = close(base + leeggoed + btw, te_betalen)
             add_btw = not (incl and not excl)
         if add_btw:
             expenses.append(Expense(datum=when, item="BTW", aantal="1", prijs=btw, categorie="Algemeen"))

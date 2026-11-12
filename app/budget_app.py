@@ -15,11 +15,12 @@ from app.ui import APP_TITLE, EXCEL_GREEN, FONT_BASE, apply_styles
 
 class BudgetApp(tk.Tk):
     def __init__(self) -> None:
-        self._enable_dpi_awareness()  # moet vóór het aanmaken van het venster
+        self._enable_dpi_awareness()
         super().__init__()
         self.title(APP_TITLE)
         self.minsize(1400, 800)
         self.configure(bg="white")
+
         if platform.system() == "Windows":
             self.state("zoomed")
         elif platform.system() == "Darwin":
@@ -41,18 +42,17 @@ class BudgetApp(tk.Tk):
     def _enable_dpi_awareness() -> None:
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:  # geen Windows of niet ondersteund
+        except Exception:
             pass
 
     def _build_title_bar(self) -> None:
         bar = tk.Frame(self, bg=EXCEL_GREEN, height=34)
         bar.pack(fill="x")
-        self.lbl_title = tk.Label(bar, text=APP_TITLE, bg=EXCEL_GREEN, fg="white",
-                                  font=(*FONT_BASE, "bold"), anchor="w", padx=12)
+        self.lbl_title = tk.Label(bar, text=APP_TITLE, bg=EXCEL_GREEN, fg="white", font=(*FONT_BASE, "bold"), anchor="w", padx=12)
         self.lbl_title.pack(fill="both", expand=True, pady=6)
 
     def _show(self, build: Callable[[], tk.Frame], subtitle: str) -> None:
-        screen = build()  # eerst bouwen: als dat mislukt blijft het vorige scherm staan
+        screen = build()
         if self.current_screen is not None:
             self.current_screen.destroy()
         self.current_screen = screen

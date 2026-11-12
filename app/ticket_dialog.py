@@ -1,4 +1,3 @@
-"""Venster om een ticketfoto door de AI te laten uitlezen, het resultaat na te kijken en op te slaan."""
 from __future__ import annotations
 
 import queue
@@ -15,10 +14,7 @@ from app.ticket_ai import MAX_IMAGES, TicketCancelled, extract_expenses_from_ima
 from app import ticket_ai
 from app.ui import ERROR_RED, EXCEL_GREEN_DARK, FONT_BASE, FONT_H2, FONT_SM, TEXT_MUTED, DataTree, center_on_parent
 
-
 class TicketDialog(tk.Toplevel):
-    """Na wait_window() geeft `saved` aan of er uitgaven naar Excel geschreven zijn."""
-
     def __init__(self, parent: tk.Misc, store: BudgetStore, member_names: Sequence[str]):
         owner = parent.winfo_toplevel()
         super().__init__(owner)
@@ -35,8 +31,7 @@ class TicketDialog(tk.Toplevel):
         self._progress = ""
         self._cancel = threading.Event()
 
-        tk.Label(self, text="🤖 Ticket Scannen & Bewerken", bg="white", fg=EXCEL_GREEN_DARK,
-                 font=FONT_H2).pack(anchor="w", padx=20, pady=(15, 5))
+        tk.Label(self, text="🤖 Ticket Scannen & Bewerken", bg="white", fg=EXCEL_GREEN_DARK, font=FONT_H2).pack(anchor="w", padx=20, pady=(15, 5))
 
         btn_box = tk.Frame(self, bg="white", padx=20, pady=15)
         btn_box.pack(fill="x", side="bottom")
@@ -46,13 +41,11 @@ class TicketDialog(tk.Toplevel):
         file_frame = tk.Frame(self, bg="white", padx=20)
         file_frame.pack(fill="x")
         self.var_path = tk.StringVar()
-        ttk.Entry(file_frame, textvariable=self.var_path, state="readonly", font=FONT_SM).pack(
-            side="left", fill="x", expand=True, padx=(0, 8))
+        ttk.Entry(file_frame, textvariable=self.var_path, state="readonly", font=FONT_SM).pack(side="left", fill="x", expand=True, padx=(0, 8))
         self.btn_pick = ttk.Button(file_frame, text="📷 Foto's kiezen...", command=self._pick_image)
         self.btn_pick.pack(side="right")
 
-        self.lbl_status = tk.Label(self, text="Selecteer één of meerdere foto's van het ticket om de AI-analyse te starten.",
-                                   bg="white", fg=TEXT_MUTED, font=FONT_SM)
+        self.lbl_status = tk.Label(self, text="Selecteer één of meerdere foto's van het ticket om de AI-analyse te starten.", bg="white", fg=TEXT_MUTED, font=FONT_SM)
         self.lbl_status.pack(anchor="w", padx=20, pady=(8, 0))
 
         frame = tk.LabelFrame(self, text=" Preview", bg="white", font=(*FONT_BASE, "bold"), padx=10, pady=10)
@@ -75,12 +68,10 @@ class TicketDialog(tk.Toplevel):
         self.wait_visibility()
         self.grab_set()
 
-    # ------------------------------------------------------------------- sluiten
     def destroy(self) -> None:
-        self._cancel.set()   # stop het uitlezen zodra het venster of de hele app sluit
+        self._cancel.set()
         super().destroy()
 
-    # ------------------------------------------------------------------ tabel
     def _refresh(self) -> None:
         self.table.fill([(str(i), expense_row_values(e)) for i, e in enumerate(self.rows)])
 
@@ -119,12 +110,8 @@ class TicketDialog(tk.Toplevel):
         if tree.identify_row(event.y):
             self._edit_row()
 
-    # --------------------------------------------------------------------- AI
     def _pick_image(self) -> None:
-        paths = filedialog.askopenfilenames(
-            parent=self, title="Selecteer ticketfoto's (meerdere mogelijk met Ctrl/Shift)",
-            filetypes=[("Afbeeldingen", "*.png *.jpg *.jpeg")],
-        )
+        paths = filedialog.askopenfilenames(parent=self, title="Selecteer ticketfoto's (meerdere mogelijk met Ctrl/Shift)", filetypes=[("Afbeeldingen", "*.png *.jpg *.jpeg")])
         if not paths:
             return
         paths = sorted(paths, key=lambda p: Path(p).name.lower())
@@ -134,31 +121,29 @@ class TicketDialog(tk.Toplevel):
 
         names = ", ".join(Path(p).name for p in paths)
         self.var_path.set(f"{len(paths)} foto's: {names}" if len(paths) > 1 else paths[0])
-        self.lbl_status.config(
-            text=f"⏳ AI-agent leest {len(paths)} foto('s) als één ticket uit...", fg=EXCEL_GREEN_DARK)
+        self.lbl_status.config(text=f"⏳ AI-agent leest {len(paths)} foto('s) als één ticket uit...", fg=EXCEL_GREEN_DARK)
         self.btn_pick.state(["disabled"])
         self._busy = True
         self._progress = ""
 
-        cancel = self._cancel = threading.Event()   # nieuw signaal per uitlezing
+        cancel = self._cancel = threading.Event()
 
         def work() -> None:
             try:
                 self._queue.put(("ok", extract_expenses_from_image(
                     list(paths), progress=self._set_progress, cancel=cancel)))
             except TicketCancelled:
-                pass  # venster is gesloten: niets meer doen
-            except Exception as exc:  # noqa: BLE001 - elke fout moet bij de gebruiker terechtkomen
+                pass
+            except Exception as exc:
                 self._queue.put(("err", str(exc) or exc.__class__.__name__))
 
         threading.Thread(target=work, daemon=False).start()
         self._poll()
 
     def _set_progress(self, text: str) -> None:
-        self._progress = text  # wordt vanuit de achtergrondthread gezet en door _poll getoond
+        self._progress = text
 
     def _poll(self) -> None:
-        """Wacht op het resultaat van de achtergrondthread (alleen de hoofdthread raakt de UI aan)."""
         try:
             if not self.winfo_exists():
                 return
@@ -173,7 +158,7 @@ class TicketDialog(tk.Toplevel):
             self._busy = False
             self.btn_pick.state(["!disabled"])
             if kind == "ok":
-                self.rows = list(payload)  # type: ignore[arg-type]
+                self.rows = list(payload)
                 self._refresh()
                 warning = ticket_ai.LAST_WARNING
                 if warning:
@@ -184,16 +169,15 @@ class TicketDialog(tk.Toplevel):
                 self.lbl_status.config(text="✖ Fout bij AI-analyse.", fg=ERROR_RED)
                 messagebox.showerror("AI Fout", f"Kan ticket niet automatisch uitlezen:\n{payload}", parent=self)
         except tk.TclError:
-            pass  # venster werd gesloten tijdens het analyseren
+            pass
 
-    # ---------------------------------------------------------------- opslaan
     def _save(self) -> None:
         if not self.rows:
             messagebox.showerror("Fout", "Geen items gevonden om op te slaan.", parent=self)
             return
         try:
             self.store.add_expenses(self.rows)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             messagebox.showerror("Fout", f"Opslaan mislukt: {exc}", parent=self)
             return
         self.saved = True
