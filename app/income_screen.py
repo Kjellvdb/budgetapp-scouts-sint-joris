@@ -1,4 +1,3 @@
-"""Tabblad 'Ledenlijst': ledenlijst met kostprijs en betaalstatus."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -10,7 +9,6 @@ from app.common import DATE_FORMAT, SHEET_MEMBERS, SHEET_VISITORS, format_money,
 from app.storage import MONEY_NUMBER_FORMAT, BudgetStore, StorageError
 from app.ui import EXCEL_GREEN_DARK, FONT_BASE, FONT_SM, FONT_XS, GRID_LINE, RIBBON_BG, ROW_PAID, ROW_PAID_HOVER, ROW_UNPAID, ROW_UNPAID_HOVER, DataTree
 
-
 def _display(value: Any) -> str:
     if value is None:
         return ""
@@ -20,11 +18,8 @@ def _display(value: Any) -> str:
         return str(int(value))
     return str(value)
 
-
 class IncomeTab(tk.Frame):
-    def __init__(self, parent: tk.Misc, store: BudgetStore, sheet_name: str = SHEET_MEMBERS,
-                 total_label: str = "Totale inkomsten weekend/kamp", default_headers: Sequence[str] = (),
-                 selectmode: str = "none"):
+    def __init__(self, parent: tk.Misc, store: BudgetStore, sheet_name: str = SHEET_MEMBERS, total_label: str = "Totale inkomsten weekend/kamp", default_headers: Sequence[str] = (), selectmode: str = "none"):
         super().__init__(parent, bg="white")
         self.store = store
         self.sheet_name = sheet_name
@@ -43,14 +38,11 @@ class IncomeTab(tk.Frame):
 
         bottom = tk.Frame(self, bg=RIBBON_BG, highlightthickness=1, highlightbackground=GRID_LINE)
         bottom.pack(fill="x", side="bottom")
-        self.lbl_total = tk.Label(bottom, text=f"{total_label}: € 0,00", bg=RIBBON_BG,
-                                  font=(*FONT_BASE, "bold"), fg=EXCEL_GREEN_DARK, padx=12, pady=6)
+        self.lbl_total = tk.Label(bottom, text=f"{total_label}: € 0,00", bg=RIBBON_BG, font=(*FONT_BASE, "bold"), fg=EXCEL_GREEN_DARK, padx=12, pady=6)
         self.lbl_total.pack(side="right", padx=10)
 
-        tk.Label(bottom, text="Klik op 'betaald' om te wijzigen · dubbelklik op de kostprijs om te bewerken",
-                 bg=RIBBON_BG, fg="#666", font=FONT_XS, padx=12).pack(side="left")
+        tk.Label(bottom, text="Klik op 'betaald' om te wijzigen · dubbelklik op de kostprijs om te bewerken", bg=RIBBON_BG, fg="#666", font=FONT_XS, padx=12).pack(side="left")
 
-        # Tabel eerst aanmaken zodat we er naar kunnen verwijzen
         self.table = DataTree(self, selectmode=selectmode, autofit=True)
         self.table.pack(fill="both", expand=True)
 
@@ -63,7 +55,6 @@ class IncomeTab(tk.Frame):
         tree.bind("<Double-1>", self._on_double_click, add="+")
         tree.bind("<Motion>", self._update_cursor, add="+")
 
-        # Workaround voor Tk 8.6.9: tag-kleuren worden anders genegeerd
         style = ttk.Style()
         def _fixed_map(option: str):
             return [e for e in style.map("Treeview", query_opt=option) if e[:2] != ("!disabled", "!selected")]
@@ -75,7 +66,6 @@ class IncomeTab(tk.Frame):
         tree.tag_configure("hover_unpaid", background=ROW_UNPAID_HOVER)
         tree.bind("<Leave>", lambda _e: self._clear_hover(), add="+")
 
-    # ------------------------------------------------------------------ laden
     def refresh(self) -> None:
         self._close_editor()
         try:
@@ -115,7 +105,7 @@ class IncomeTab(tk.Frame):
                     is_paid = str(value or "").strip().lower() == "ja"
                     shown.append("✔ Ja" if is_paid else "❌ Nee")
                 elif idx in (self.alcohol_idx, self.sterke_idx) and not is_editable_drink:
-                    shown.append("")  # Leeg voor gewone leden
+                    shown.append("")
                 elif idx == self.alcohol_idx or idx == self.sterke_idx:
                     is_yes = str(value or "").strip().lower() == "ja"
                     shown.append("✔ Ja" if is_yes else "❌ Nee")
@@ -128,7 +118,7 @@ class IncomeTab(tk.Frame):
             paid_flags.append(str(values[self.betaald_idx] if 0 <= self.betaald_idx < len(values) else "").strip().lower() == "ja")
             table_rows.append((iid, shown))
 
-        if headers != self._configured_headers:  # niet bij elke refresh: bewaart de kolombreedtes
+        if headers != self._configured_headers:
             self.table.configure_columns(headers, default_width=170)
             self._configured_headers = list(headers)
             self.table.fit_columns()
@@ -142,7 +132,6 @@ class IncomeTab(tk.Frame):
             tree.item(iid, tags=(tag,))
         self.lbl_total.config(text=f"{self.total_label}: {format_money(total)}")
 
-    # -------------------------------------------------------------- bewerken
     def _close_editor(self) -> None:
         if self._editor is not None:
             try:
@@ -165,11 +154,10 @@ class IncomeTab(tk.Frame):
         return (iid, col) if iid and col >= 0 else None
 
     def _is_yesno_col(self, iid: str, col: int) -> bool:
-        """True als de kolom een klikbaar Ja/Nee-veld is."""
         if col == self.betaald_idx and col != -1:
             return True
         if col in (self.alcohol_idx, self.sterke_idx) and col != -1:
-            return self._row_is_leiding.get(iid, False) # Alleen klikbaar als het leiding is
+            return self._row_is_leiding.get(iid, False)
         return False
 
     def _update_cursor(self, event: tk.Event) -> None:
@@ -195,7 +183,7 @@ class IncomeTab(tk.Frame):
                 if base:
                     self.table.tree.item(self._hover_iid, tags=(base,))
             except tk.TclError:
-                pass  # rij bestaat niet meer (na refresh)
+                pass
             self._hover_iid = None
 
     def _on_click(self, event: tk.Event) -> None:
@@ -260,7 +248,7 @@ class IncomeTab(tk.Frame):
         try:
             is_betaling = (col == self.betaald_idx)
             self.store.set_cell(self.sheet_name, int(iid), col + 1, value, is_betaling, number_format)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             messagebox.showerror("Fout", f"Opslaan mislukt: {exc}", parent=self)
             return
         self.refresh()
@@ -269,16 +257,13 @@ class IncomeTab(tk.Frame):
         if self.kost_idx == -1:
             messagebox.showwarning("Let op", "Kolom 'Kostprijs' niet gevonden.", parent=self)
             return
-        val = simpledialog.askfloat("Alle kostprijzen instellen",
-                                    "Voer de nieuwe kostprijs in voor iedereen:",
-                                    minvalue=0.0, parent=self)
+        val = simpledialog.askfloat("Alle kostprijzen instellen", "Voer de nieuwe kostprijs in voor iedereen:", minvalue=0.0, parent=self)
         if val is None:
             return
         try:
             _, rows = self.store.read_table(self.sheet_name)
-            self.store.set_column_value(self.sheet_name, [r for r, _ in rows],
-                                        self.kost_idx + 1, val, MONEY_NUMBER_FORMAT)
-        except Exception as exc:  # noqa: BLE001
+            self.store.set_column_value(self.sheet_name, [r for r, _ in rows], self.kost_idx + 1, val, MONEY_NUMBER_FORMAT)
+        except Exception as exc:
             messagebox.showerror("Fout", f"Instellen mislukt: {exc}", parent=self)
             return
         self.refresh()

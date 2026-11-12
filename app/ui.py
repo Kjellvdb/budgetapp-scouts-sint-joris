@@ -1,4 +1,3 @@
-"""Gedeelde UI-onderdelen: kleuren, stijlen en een tabel met streepjes, hover en scrollbalk."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -40,17 +39,12 @@ def apply_styles(root: tk.Misc) -> None:
     style.configure("TNotebook.Tab", font=(FONT, 14), padding=(20, 6))
     style.configure("Treeview", font=(FONT, 14), rowheight=28)
     style.configure("Treeview.Heading", font=(FONT, 14, "bold"))
-    style.configure("Big.TButton", background="white", foreground=EXCEL_GREEN_DARK,
-                    padding=(20, 16), font=(FONT, 14, "bold"), bordercolor=EXCEL_GREEN)
+    style.configure("Big.TButton", background="white", foreground=EXCEL_GREEN_DARK, padding=(20, 16), font=(FONT, 14, "bold"), bordercolor=EXCEL_GREEN)
 
-    # Tk 8.6.9 negeert de selectiekleur bij rijen met tags; dit herstelt dat.
     def fixed_map(option: str):
         return [e for e in style.map("Treeview", query_opt=option) if e[:2] != ("!disabled", "!selected")]
 
-    style.map("Treeview",
-              foreground=[("selected", "black")] + fixed_map("foreground"),
-              background=[("selected", ROW_SELECTED)] + fixed_map("background"))
-
+    style.map("Treeview", foreground=[("selected", "black")] + fixed_map("foreground"), background=[("selected", ROW_SELECTED)] + fixed_map("background"))
 
 def center_on_parent(win: tk.Toplevel, parent: tk.Misc, width: int, height: int) -> None:
     parent = parent.winfo_toplevel()
@@ -59,14 +53,7 @@ def center_on_parent(win: tk.Toplevel, parent: tk.Misc, width: int, height: int)
     y = parent.winfo_rooty() + (parent.winfo_height() - height) // 2
     win.geometry(f"{width}x{height}+{max(x, 0)}+{max(y, 0)}")
 
-
 class DataTree(tk.Frame):
-    """Treeview met rijnummers, streeppatroon, hover-kleur en scrollbalk.
-
-    Rijen worden toegevoegd met een eigen iid (bv. het Excel-rijnummer), zodat je altijd
-    weet welke gegevens bij een geselecteerde rij horen.
-    """
-
     def __init__(self, parent: tk.Misc, selectmode: str = "browse", autofit: bool = False):
         super().__init__(parent, bg="white")
         self._autofit = autofit
@@ -76,7 +63,6 @@ class DataTree(tk.Frame):
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        # Volgorde bepaalt prioriteit: 'hover' wint van de streepkleuren.
         self.tree.tag_configure("odd", background=ROW_ODD)
         self.tree.tag_configure("even", background=ROW_EVEN)
         self.tree.tag_configure("hover", background=ROW_HOVER)
@@ -91,8 +77,7 @@ class DataTree(tk.Frame):
         self.tree.heading("#0", text="")
         self.tree.column("#0", width=46, minwidth=46, anchor="center", stretch=False)
 
-    def configure_columns(self, headers: Sequence[str], widths: Optional[Sequence[int]] = None,
-                          default_width: int = 150) -> None:
+    def configure_columns(self, headers: Sequence[str], widths: Optional[Sequence[int]] = None, default_width: int = 150) -> None:
         ids = [f"c{i}" for i in range(len(headers))]
         self.tree["columns"] = ids
         self._reset_number_column()
@@ -102,7 +87,6 @@ class DataTree(tk.Frame):
             self.tree.column(col_id, width=width, minwidth=50, anchor="w", stretch=True)
 
     def fit_columns(self) -> None:
-        """Schaalt de kolommen (in verhouding) zodat ze de volledige breedte van de tabel vullen."""
         cols = self.tree["columns"]
         if not cols:
             return
@@ -112,7 +96,7 @@ class DataTree(tk.Frame):
         if avail <= 50 * len(cols) or total <= 0 or abs(total - avail) <= 1:
             return
         new = [max(50, int(w * avail / total)) for w in widths]
-        new[-1] = max(50, new[-1] + avail - sum(new))  # afrondingsrest naar de laatste kolom
+        new[-1] = max(50, new[-1] + avail - sum(new))
         for c, w in zip(cols, new):
             self.tree.column(c, width=w)
 
@@ -121,14 +105,11 @@ class DataTree(tk.Frame):
             self.fit_columns()
 
     def fill(self, rows: Sequence[tuple[str, Sequence[str]]]) -> None:
-        """rows = [(iid, waarden), ...]"""
         self._hovered = None
         self.tree.delete(*self.tree.get_children())
         for i, (iid, values) in enumerate(rows):
-            self.tree.insert("", "end", iid=iid, text=str(i + 1), values=list(values),
-                             tags=("even" if i % 2 == 0 else "odd",))
+            self.tree.insert("", "end", iid=iid, text=str(i + 1), values=list(values), tags=("even" if i % 2 == 0 else "odd",))
 
-    # ------------------------------------------------------------------ hover
     def _base_tag(self, iid: str) -> str:
         return "even" if self.tree.index(iid) % 2 == 0 else "odd"
 
