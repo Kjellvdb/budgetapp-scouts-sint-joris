@@ -1,0 +1,215 @@
+{% extends "base.html" %} {% block content %} {% include "partials/nav.html" %}
+
+<div class="container-fluid mt-4 px-4 mb-5 pb-3">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 text-success mb-1">🎟️ Fourage & Bezoekerslijst</h1>
+      <p class="text-muted small mb-0">Bestand: <strong>{{ filename }}</strong></p>
+    </div>
+    <div>
+      <button
+        type="button"
+        class="btn btn-outline-success btn-sm me-2"
+        data-bs-toggle="modal"
+        data-bs-target="#setAllVisitorCostModal"
+      >
+        <i class="bi bi-cash-stack me-1"></i> Kostprijs voor iedereen instellen
+      </button>
+      <button
+        type="button"
+        class="btn btn-success btn-sm me-2"
+        data-bs-toggle="modal"
+        data-bs-target="#addVisitorModal"
+      >
+        <i class="bi bi-plus-lg me-1"></i> Bezoeker toevoegen
+      </button>
+      <button type="button" class="btn btn-outline-danger btn-sm" id="deleteSelectedBtn" disabled>
+        <i class="bi bi-trash me-1"></i> Geselecteerde verwijderen (<span id="selectedCount">0</span>)
+      </button>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger py-2 small">{{ error }}</div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center user-select-none" id="visitorTable">
+          <thead class="table-light">
+            <tr>
+              <th class="text-start ps-4">Naam</th>
+              <th>Kostprijs (€)</th>
+              <th>Betaald?</th>
+              <th>Alcohol</th>
+              <th>Sterke Drank</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %} {% set excel_row = row['_excel_row'] %} {% set is_paid = (row['Betaald?'] == 'Ja') %}
+            {% set alcohol_yes = (row['Alcohol?'] == 'Ja') %} {% set strong_yes = (row['Sterke?'] == 'Ja') %}
+            <tr data-row-idx="{{ excel_row }}" style="cursor: pointer">
+              <td class="text-start ps-4 fw-semibold">
+                <input
+                  type="text"
+                  class="form-control form-control-sm visitor-name"
+                  data-row="{{ excel_row }}"
+                  value="{{ row['Naam'] }}"
+                  style="max-width: 200px"
+                  onclick="event.stopPropagation()"
+                />
+              </td>
+
+              <td>
+                <input
+                  type="number"
+                  step="0.5"
+                  class="form-control form-control-sm text-center visitor-cost"
+                  data-row="{{ excel_row }}"
+                  value="{{ '%.2f' | format(row['Kostprijs'] or 0) }}"
+                  style="max-width: 100px; margin: 0 auto"
+                  onclick="event.stopPropagation()"
+                />
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm visitor-status status-paid {% if is_paid %}bg-success-subtle text-success-emphasis{% else %}bg-danger-subtle text-danger-emphasis{% endif %}" 
+                        data-row="{{ excel_row }}" data-field="betaald" onclick="event.stopPropagation()">
+                    <option value="Nee" {% if not is_paid %}selected{% endif %}>Nee</option>
+                    <option value="Ja" {% if is_paid %}selected{% endif %}>Ja</option>
+                </select>
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm visitor-status" 
+                        data-row="{{ excel_row }}" data-field="alcohol" onclick="event.stopPropagation()">
+                    <option value="Nee" {% if not alcohol_yes %}selected{% endif %}>Nee</option>
+                    <option value="Ja" {% if alcohol_yes %}selected{% endif %}>Ja</option>
+                </select>
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm visitor-status" 
+                        data-row="{{ excel_row }}" data-field="sterke" onclick="event.stopPropagation()">
+                    <option value="Nee" {% if not strong_yes %}selected{% endif %}>Nee</option>
+                    <option value="Ja" {% if strong_yes %}selected{% endif %}>Ja</option>
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fixed-bottom bg-light border-top py-2 px-4 shadow-sm text-end fw-bold text-success">
+  Totale inkomsten (fourage & bezoekers): € {{ '%.2f' | format(total_income or 0) }}
+</div>
+
+<div class="modal fade" id="addVisitorModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form action="/fourage/add" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fs-6">Nieuwe bezoeker toevoegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Naam</label>
+            <input type="text" name="naam" class="form-control" required autofocus />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Kostprijs (€)</label>
+            <input type="number" step="0.5" name="kostprijs" class="form-control" value="0.00" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Betaald?</label>
+            <select name="betaald" class="form-select">
+              <option value="Nee">Nee</option>
+              <option value="Ja">Ja</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Alcohol</label>
+            <select name="alcohol" class="form-select">
+              <option value="Nee">Nee</option>
+              <option value="Ja">Ja</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Sterke drank</label>
+            <select name="sterke" class="form-select">
+              <option value="Nee">Nee</option>
+              <option value="Ja">Ja</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+          <button type="submit" class="btn btn-success btn-sm">Toevoegen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6">Bevestig verwijdering</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteConfirmText" class="mb-0">Weet je zeker dat je de geselecteerde bezoeker(s) wilt verwijderen?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn">Verwijderen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="setAllVisitorCostModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6">Kostprijs voor alle bezoekers instellen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="globalVisitorCostForm">
+          <div class="mb-3">
+            <label for="globalVisitorCostInput" class="form-label small fw-bold">Bedrag per bezoeker (€)</label>
+            <input
+              type="number"
+              step="0.01"
+              id="globalVisitorCostInput"
+              class="form-control"
+              placeholder="bijv. 15.00"
+              required
+              autofocus
+            />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-success btn-sm" id="applyGlobalVisitorCostBtn">
+          Toepassen op iedereen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/visitors.js"></script>
+{% endblock %}

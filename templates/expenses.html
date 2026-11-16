@@ -1,0 +1,317 @@
+{% extends "base.html" %} {% block content %} {% include "partials/nav.html" %}
+<div class="container-fluid mt-4 px-4 mb-5 pb-3">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 text-danger mb-1">💸 Uitgavenbeheer</h1>
+      <p class="text-muted small mb-0">Bestand: <strong>{{ filename }}</strong></p>
+    </div>
+    <div>
+      <button type="button" class="btn btn-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#scanTicketModal">
+        <i class="bi bi-camera me-1"></i> Ticket scannen
+      </button>
+      <button type="button" class="btn btn-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+        <i class="bi bi-plus-lg me-1"></i> Uitgave manueel toevoegen
+      </button>
+      <button type="button" class="btn btn-outline-danger btn-sm" id="deleteSelectedBtn" disabled>
+        <i class="bi bi-trash me-1"></i> Geselecteerde verwijderen (<span id="selectedCount">0</span>)
+      </button>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger py-2 small">{{ error }}</div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center user-select-none" id="expensesTable">
+          <thead class="table-light">
+            <tr>
+              <th>Datum</th>
+              <th class="text-start ps-4">Item</th>
+              <th>Aantal</th>
+              <th>Prijs (€)</th>
+              <th>Categorie</th>
+              <th>Persoon</th>
+              <th>Betaald?</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %} {% set excel_row = row['_excel_row'] %} {% set is_personal = (row['Categorie'] ==
+            'Persoonlijk') %} {% set is_algemeen = (row['Categorie'] == 'Algemeen') %} {% set is_alcohol =
+            (row['Categorie'] == 'Alcohol') %} {% set is_strong = (row['Categorie'] == 'Sterke drank') %} {% set
+            betaald_val = (row['Betaald?'] | string | trim) %} {% set is_paid = (betaald_val == 'Ja') %}
+
+            <tr data-row-idx="{{ excel_row }}" style="cursor: pointer">
+              <td onclick="event.stopPropagation()">
+                <input
+                  type="text"
+                  class="form-control form-control-sm text-center expense-field date-input"
+                  data-row="{{ excel_row }}"
+                  data-field="datum"
+                  data-iso="{{ row['Datum'] }}"
+                  value="{% if row['Datum'] %}{% set p = row['Datum'].split('-') %}{% if p|length == 3 %}{{ p[2] }}/{{ p[1] }}/{{ p[0] }}{% else %}{{ row['Datum'] }}{% endif %}{% endif %}"
+                  placeholder="DD/MM/YYYY"
+                  maxlength="10"
+                  style="min-width: 110px"
+                />
+              </td>
+
+              <td class="text-start ps-4">
+                <input
+                  type="text"
+                  class="form-control form-control-sm expense-field"
+                  data-row="{{ excel_row }}"
+                  data-field="item"
+                  value="{{ row['Item'] }}"
+                  onclick="event.stopPropagation()"
+                />
+              </td>
+
+              <td>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  class="form-control form-control-sm text-center expense-field"
+                  data-row="{{ excel_row }}"
+                  data-field="aantal"
+                  value="{{ '%.0f' | format(row['Aantal']) }}"
+                  style="max-width: 80px; margin: 0 auto"
+                  onclick="event.stopPropagation()"
+                />
+              </td>
+
+              <td>
+                <input
+                  type="number"
+                  step="0.5"
+                  class="form-control form-control-sm text-center expense-field"
+                  data-row="{{ excel_row }}"
+                  data-field="prijs"
+                  value="{{ '%.2f' | format(row['Prijs'] or 0) }}"
+                  style="max-width: 100px; margin: 0 auto"
+                  onclick="event.stopPropagation()"
+                />
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm expense-field category-select" data-row="{{ excel_row }}" data-field="categorie" onclick="event.stopPropagation()">
+                  <option value="Algemeen" {% if is_algemeen %}selected{% endif %}>Algemeen</option>
+                  <option value="Alcohol" {% if is_alcohol %}selected{% endif %}>Alcohol</option>
+                  <option value="Sterke drank" {% if is_strong %}selected{% endif %}>Sterke drank</option>
+                  <option value="Persoonlijk" {% if is_personal %}selected{% endif %}>Persoonlijk</option>
+                </select>
+              </td>
+
+              <td onclick="event.stopPropagation()">
+                <!-- prettier-ignore -->
+                <input type="text" autocomplete="off" class="form-control form-control-sm text-center expense-field person-input {{ 'is-invalid border-danger' if is_personal and not row['Persoon'] else '' }}" data-row="{{ excel_row }}" data-field="persoon" value="{{ row['Persoon'] }}" placeholder="{{ '⚠️ Naam verplicht' if is_personal else '' }}" {% if not is_personal %}disabled{% endif %}>
+                <div
+                  class="autocomplete-dropdown list-group shadow-sm"
+                  style="
+                    z-index: 9999;
+                    display: none;
+                    text-align: left;
+                    max-height: 180px;
+                    overflow-y: auto;
+                    position: fixed;
+                  "
+                ></div>
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm expense-field paid-select" data-row="{{ excel_row }}" data-field="betaald" {% if not is_personal %}disabled{% endif %} onclick="event.stopPropagation()">
+                  <option value="" hidden disabled {% if not is_personal %}selected{% endif %}></option>
+                  <option value="Nee" {% if is_personal and (not betaald_val or betaald_val == 'Nee') %}selected{% endif %}>Nee</option>
+                  <option value="Ja" {% if is_personal and is_paid %}selected{% endif %}>Ja</option>
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fixed-bottom bg-light border-top py-2 px-4 shadow-sm text-end fw-bold text-danger">
+  Totale uitgaven: € {{ '%.2f' | format(total_expenses or 0) }}
+</div>
+
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form action="/uitgaven/add" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fs-6">Nieuwe uitgave toevoegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Datum</label>
+            <input type="text" name="datum" class="form-control flatpickr-date" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Item / Omschrijving</label>
+            <input type="text" name="item" class="form-control" placeholder="Bijv. Vlees BBQ" required autofocus />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Aantal</label>
+            <input type="number" name="aantal" class="form-control" value="1" min="1" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Totale prijs (€)</label>
+            <input type="number" step="0.01" name="prijs" class="form-control" placeholder="0.00" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Categorie</label>
+            <select name="categorie" id="modalCategorie" class="form-select" required>
+              <option value="Algemeen">Algemeen</option>
+              <option value="Alcohol">Alcohol</option>
+              <option value="Sterke drank">Sterke drank</option>
+              <option value="Persoonlijk">Persoonlijk</option>
+            </select>
+          </div>
+
+          <div class="mb-3" id="modalPersoonContainer" style="display: none">
+            <label class="form-label small fw-bold text-danger">Persoon (Bezoeker of Leiding) * Verplicht</label>
+            <input
+              type="text"
+              autocomplete="off"
+              name="persoon"
+              id="modalPersoon"
+              class="form-control border-danger"
+              placeholder="Typ om te zoeken..."
+            />
+            <div
+              id="modal-autocomplete-dropdown"
+              class="autocomplete-dropdown list-group position-absolute w-100 shadow-sm"
+              style="z-index: 1000; display: none; text-align: left; max-height: 180px; overflow-y: auto"
+            ></div>
+          </div>
+
+          <div class="mb-3" id="modalBetaaldContainer" style="display: none">
+            <label class="form-label small fw-bold">Betaald?</label>
+            <select name="betaald" id="modalBetaald" class="form-select">
+              <option value="Nee">Nee</option>
+              <option value="Ja">Ja</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+          <button type="submit" class="btn btn-danger btn-sm">Toevoegen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6">Bevestig verwijdering</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteConfirmText" class="mb-0">Weet je zeker dat je de geselecteerde uitgave(n) wilt verwijderen?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn">Verwijderen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="scanTicketModal" tabindex="-1" aria-labelledby="scanTicketModalLabel">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6" id="scanTicketModalLabel">
+          <i class="bi bi-camera me-1"></i> Ticket scannen met AI
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert alert-warning py-2 mb-3 small">
+          <strong><i class="bi bi-exclamation-triangle-fill me-1"></i> Let op - beperkt aantal scans per dag!</strong
+          ><br />
+          De AI gebruikt een gratis API met een dagelijks tokenquotum. Zorg er daarom voor dat elke foto
+          <strong>kwalitatief goed</strong> is vóór je uploadt:
+          <ul class="mb-0 mt-1">
+            <li>📐 <strong>Juiste oriëntatie</strong> - ticket rechtop, niet scheef of ondersteboven</li>
+            <li>💡 <strong>Goede belichting</strong> - geen schaduwen over de tekst, niet overbelicht</li>
+            <li>🔍 <strong>Scherp en in beeld</strong> - alle regels leesbaar, niets afgesneden</li>
+            <li>
+              🧾 <strong>Volledig ticket</strong> - gebruik meerdere foto's voor lange tickets (één foto per sectie,
+              overlapping is ok)
+            </li>
+          </ul>
+          Een vage of scheve foto verspilt je dagelijks quotum zonder bruikbaar resultaat.
+        </div>
+
+        <div id="scanUploadZone" class="scan-upload-zone mb-3">
+          <i class="bi bi-cloud-arrow-up fs-2 text-muted d-block mb-2"></i>
+          <p class="mb-1 fw-semibold">Sleep foto('s) hierheen of klik om te kiezen</p>
+          <p class="text-muted small mb-0">JPG / PNG / WEBP – max 10 foto's per ticket</p>
+          <input type="file" id="scanFileInput" accept="image/*" multiple class="d-none" />
+        </div>
+
+        <div id="scanThumbnails" class="scan-thumbnails mb-3"></div>
+
+        <div id="scanStatus" class="d-none">
+          <div class="d-flex align-items-center gap-2 text-danger">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span id="scanStatusText">AI leest het ticket uit…</span>
+          </div>
+        </div>
+
+        <div id="scanError" class="alert alert-danger py-2 small d-none"></div>
+        <div id="scanWarning" class="alert alert-warning py-2 small d-none"></div>
+
+        <div id="scanPreviewContainer" class="d-none">
+          <p class="fw-semibold small mb-2">Gevonden items — controleer en pas aan waar nodig:</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0 text-center" id="scanPreviewTable">
+              <thead class="table-light">
+                <tr>
+                  <th></th>
+                  <th>Datum</th>
+                  <th class="text-start">Item</th>
+                  <th>Aantal</th>
+                  <th>Prijs (€)</th>
+                  <th>Categorie</th>
+                </tr>
+              </thead>
+              <tbody id="scanPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-danger btn-sm" id="scanStartBtn" disabled>
+          <i class="bi bi-cpu me-1"></i> Scan starten
+        </button>
+        <button type="button" class="btn btn-success btn-sm d-none" id="scanSaveBtn">
+          <i class="bi bi-check-lg me-1"></i> Toevoegen aan uitgaven
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.appPersons = JSON.parse('{{ person_options | tojson | safe }}');
+</script>
+<script src="/static/js/expenses.js"></script>
+{% endblock %}

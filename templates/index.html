@@ -1,0 +1,29 @@
+{% extends "base.html" %} {% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6">
+    <div class="card shadow-sm p-4 bg-white rounded">
+      <h1 class="text-success mb-3 text-center fs-3">Budgetapp Scouts Sint-Joris</h1>
+      <p class="text-muted text-center mb-4 small">Beheer eenvoudig de kas voor al je weekends en kampen.</p>
+
+      <div class="mb-4 pb-4 border-bottom">
+        <h3 class="h6 fw-bold mb-2">📂 Bestaand budget openen</h3>
+        <p class="text-muted small">Upload je bestaande Excel-bestand om verder te gaan.</p>
+        <form action="/upload" enctype="multipart/form-data" method="post" class="mt-2">
+          <div class="mb-2">
+            <input class="form-control form-control-sm" type="file" name="file" accept=".xlsx" required />
+          </div>
+          <button type="submit" class="btn btn-success btn-sm w-100">Openen & Bewerken</button>
+        </form>
+      </div>
+
+      <div>
+        <h3 class="h6 fw-bold mb-2">➕ Nieuw budget aanmaken</h3>
+        <p class="text-muted small">Start een gloednieuw budget voor een weekend of kamp.</p>
+        <form action="/budget/new" method="get" class="mt-2">
+          <button type="submit" class="btn btn-outline-success btn-sm w-100">Nieuw budget starten</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %} {% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6">
+    <div class="card shadow-sm p-4 bg-white rounded">
+      <h1 class="text-success mb-3 text-center fs-4">➕ Nieuw budget aanmaken</h1>
+      <p class="text-muted text-center mb-4 small">
+        Geef je nieuwe kamp- of weekendbudget een naam en upload de CSV-ledenlijst om te starten.
+      </p>
+
+      <form action="/budget/new" enctype="multipart/form-data" method="post">
+        <div class="mb-3">
+          <label for="budget_name" class="form-label fw-bold small">Naam van het budget / evenement</label>
+          <input
+            type="text"
+            class="form-control"
+            id="budget_name"
+            name="budget_name"
+            placeholder="bv. Zomerkamp 2027"
+            required
+            autofocus
+          />
+        </div>
+
+        <div class="mb-4">
+          <label for="members_file" class="form-label fw-bold small">Ledenlijst (CSV-bestand)</label>
+          <input type="file" class="form-control" id="members_file" name="members_file" accept=".csv" required />
+          <div class="form-text small">Dit bestand is verplicht en vormt de eerste tab in je budget.</div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-success">Budget aanmaken & openen</button>
+          <a href="/" class="btn btn-outline-secondary btn-sm">Annuleren</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom mb-4 px-4">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse show" id="navbarNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 fs-5 align-items-lg-center">
+        <li class="nav-item">
+          <a
+            class="nav-link px-3 {% if request.url.path == '/leden' or request.url.path.startswith('/leden/') %}active fw-bold text-success border-bottom border-success border-2{% endif %}"
+            href="/leden"
+          >
+            <i class="bi bi-people me-2"></i>Ledenlijst
+          </a>
+        </li>
+        <li class="nav-item ms-lg-3">
+          <a
+            class="nav-link px-3 {% if request.url.path == '/fourage' or request.url.path.startswith('/fourage/') %}active fw-bold text-success border-bottom border-success border-2{% endif %}"
+            href="/fourage"
+          >
+            <i class="bi bi-person-plus me-2"></i>Fourage & Bezoekerslijst
+          </a>
+        </li>
+        <li class="nav-item ms-lg-3">
+          <a
+            class="nav-link px-3 {% if request.url.path == '/uitgaven' or request.url.path.startswith('/uitgaven/') %}active fw-bold text-success border-bottom border-success border-2{% endif %}"
+            href="/uitgaven"
+          >
+            <i class="bi bi-cash-coin me-2"></i>Uitgaven
+          </a>
+        </li>
+        <li class="nav-item ms-lg-3">
+          <a
+            class="nav-link px-3 {% if request.url.path == '/overzicht' or request.url.path.startswith('/overzicht/') %}active fw-bold text-success border-bottom border-success border-2{% endif %}"
+            href="/overzicht"
+          >
+            <i class="bi bi-graph-up me-2"></i>Overzicht
+          </a>
+        </li>
+      </ul>
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="btn btn-outline-success btn-sm d-flex align-items-center gap-1"
+          data-bs-toggle="modal"
+          data-bs-target="#calculatorModal"
+        >
+          <i class="bi bi-calculator"></i> Rekenmachine
+        </button>
+        <a href="/download" class="btn btn-success btn-sm d-flex align-items-center gap-1">
+          <i class="bi bi-download"></i> Opslaan
+        </a>
+        <a href="/" class="btn btn-outline-secondary btn-sm">Terug naar start</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="modal fade" id="calculatorModal" tabindex="-1" aria-labelledby="calculatorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 320px">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-success text-white py-2">
+        <h5 class="modal-title fs-6" id="calculatorModalLabel"><i class="bi bi-calculator me-1"></i> Rekenmachine</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+      </div>
+      <div class="modal-body p-3">
+        <input
+          type="text"
+          id="calcDisplay"
+          class="form-control form-control-lg text-end mb-3 bg-white"
+          readonly
+          value="0"
+        />
+        <div class="d-grid gap-2" style="grid-template-columns: repeat(4, 1fr); display: grid">
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="calcClear()">C</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcAppend('(')">(</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcAppend(')')">)</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcAppend('/')">÷</button>
+
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('7')">7</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('8')">8</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('9')">9</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcAppend('*')">×</button>
+
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('4')">4</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('5')">5</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('6')">6</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcAppend('-')">-</button>
+
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('1')">1</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('2')">2</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('3')">3</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcAppend('+')">+</button>
+
+          <button
+            type="button"
+            class="btn btn-outline-dark btn-sm col-span-2"
+            style="grid-column: span 2"
+            onclick="calcAppend('0')"
+          >
+            0
+          </button>
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick="calcAppend('.')">.</button>
+          <button type="button" class="btn btn-success btn-sm" onclick="calcCalculate()">=</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/calculator.js"></script>

@@ -1,0 +1,134 @@
+{% extends "base.html" %} {% block content %} {% include "partials/nav.html" %}
+<div class="container-fluid mt-4 px-4 mb-5 pb-3">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 text-success mb-1">⛺ Ledenlijst</h1>
+      <p class="text-muted small mb-0">Bestand: <strong>{{ filename }}</strong></p>
+    </div>
+    <div>
+      <button
+        type="button"
+        class="btn btn-outline-success btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#setAllBudgetModal"
+      >
+        <i class="bi bi-cash-stack me-1"></i> Kostprijs voor iedereen instellen
+      </button>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger py-2 small">{{ error }}</div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center">
+          <thead class="table-light">
+            <tr>
+              <th class="text-start ps-4">Naam</th>
+              <th class="text-start">Tak</th>
+              <th>Kostprijs (€)</th>
+              <th>Betaald?</th>
+              <th>Alcohol</th>
+              <th>Sterke Drank</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %} {% set row_idx = loop.index %} {% set tak_lower = row['Tak'] | string | lower %} {%
+            set is_leiding_of_jin = 'leiding' in tak_lower or 'jin' in tak_lower %} {% set alcohol_val =
+            (row['Alcohol?'] | string | trim | lower) %} {% set alcohol_yes = alcohol_val in ['ja', 'yes', 'true', '1']
+            %} {% set strong_val = (row['Sterke?'] | string | trim | lower) %} {% set strong_yes = strong_val in ['ja',
+            'yes', 'true', '1'] %}
+            <tr>
+              <td class="text-start ps-4 fw-semibold">{{ row['Naam'] }}</td>
+              <td class="text-start text-muted small">{{ row['Tak'] }}</td>
+
+              <td>
+                <input
+                  type="number"
+                  step="0.5"
+                  class="form-control form-control-sm text-center member-cost"
+                  data-row="{{ row['_excel_row'] }}"
+                  value="{{ '%.2f' | format(row['Kostprijs'] or 0) }}"
+                  style="max-width: 100px; margin: 0 auto"
+                />
+              </td>
+
+              <td>
+                {% set paid_val = (row['Betaald?'] | string | trim | lower) %} {% set is_paid = paid_val in ['ja',
+                'yes', 'true', '1'] %}
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm member-status status-paid {% if is_paid %}bg-success-subtle text-success-emphasis{% else %}bg-danger-subtle text-danger-emphasis{% endif %}" 
+                        data-row="{{ row['_excel_row'] }}" data-field="betaald">
+                    <option value="Nee" {% if not is_paid %}selected{% endif %}>Nee</option>
+                    <option value="Ja" {% if is_paid %}selected{% endif %}>Ja</option>
+                </select>
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm member-status" 
+                                        data-row="{{ row['_excel_row'] }}" data-field="alcohol"
+                                        {% if not is_leiding_of_jin %}disabled title="Enkel voor Leiding / Jin"{% endif %}>
+                                    <option value="Nee" {% if not alcohol_yes %}selected{% endif %}>Nee</option>
+                                    <option value="Ja" {% if alcohol_yes %}selected{% endif %}>Ja</option>
+                                </select>
+              </td>
+
+              <td>
+                <!-- prettier-ignore -->
+                <select class="form-select form-select-sm member-status" 
+                                        data-row="{{ row['_excel_row'] }}" data-field="sterke"
+                                        {% if not is_leiding_of_jin %}disabled title="Enkel voor Leiding / Jin"{% endif %}>
+                                    <option value="Nee" {% if not strong_yes %}selected{% endif %}>Nee</option>
+                                    <option value="Ja" {% if strong_yes %}selected{% endif %}>Ja</option>
+                                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fixed-bottom bg-light border-top py-2 px-4 shadow-sm text-end fw-bold text-success">
+  Totale inkomsten (leden & leiding): € {{ '%.2f' | format(total_income or 0) }}
+</div>
+
+<div class="modal fade" id="setAllBudgetModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-6">Kostprijs voor iedereen instellen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="globalCostForm">
+          <div class="mb-3">
+            <label for="globalCostInput" class="form-label small fw-bold">Bedrag per persoon (€)</label>
+            <input
+              type="number"
+              step="0.01"
+              id="globalCostInput"
+              class="form-control"
+              placeholder="bijv. 45.00"
+              required
+              autofocus
+            />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-success btn-sm" id="applyGlobalCostBtn">Toepassen op iedereen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/members.js"></script>
+{% endblock %}
