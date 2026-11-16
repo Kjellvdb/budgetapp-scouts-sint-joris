@@ -1,4 +1,3 @@
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from fastapi.testclient import TestClient
@@ -6,7 +5,7 @@ from openpyxl import load_workbook
 
 import re
 
-from app.main import app
+from app.main import app, PASSWORD
 from app import session_store, storage
 
 def create_test_budget(user_number: int) -> bytes:
@@ -29,6 +28,8 @@ def simulate_user(user_number: int) -> dict:
     filename = f"budget_user_{user_number}.xlsx"
 
     with TestClient(app) as client:
+        client.post("/login", data={"password": PASSWORD})
+
         home_response = client.get("/")
         assert home_response.status_code == 200
         session_id = client.cookies.get(
