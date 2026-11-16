@@ -30,7 +30,7 @@ async def session_middleware(request: Request, call_next):
             key=session_store.SESSION_COOKIE_NAME,
             value=session_id,
             httponly=True,
-            secure=False, # True bij HTTPS
+            secure=False,
             samesite="lax",
             path="/",
             max_age=60 * 60 * 24 * 30,
