@@ -393,13 +393,15 @@ def get_summary() -> tuple[Summary, list[Person]]:
         })
     for expense in expenses:
         categorie = str(expense.get("Categorie", "")).strip().lower()
+        betaald = str(expense.get("Betaald?", "")).strip().lower()
         prijs = float(expense.get("Prijs") or 0.0)
         if categorie == "alcohol":
             summary.alcohol += prijs
         elif categorie == "sterke drank":
             summary.sterke_drank += prijs
         elif categorie == "persoonlijk":
-            summary.persoonlijk += prijs
+            if betaald not in ("ja", "yes", "true", "1"):
+                summary.persoonlijk += prijs
         else:
             summary.algemeen += prijs
     all_persons = member_data + visitor_data
@@ -440,6 +442,9 @@ def get_summary() -> tuple[Summary, list[Person]]:
     uitgaven_dict = {}
     for expense in expenses:
         categorie = str(expense.get("Categorie", "")).strip() or "Algemeen"
+        betaald = str(expense.get("Betaald?", "")).strip().lower()
+        if categorie.lower() == "persoonlijk" and betaald in ("ja", "yes", "true", "1"):
+            continue
         prijs = float(expense.get("Prijs") or 0.0)
         uitgaven_dict[categorie] = uitgaven_dict.get(categorie, 0.0) + prijs
     summary.uitgaven_per_categorie = uitgaven_dict

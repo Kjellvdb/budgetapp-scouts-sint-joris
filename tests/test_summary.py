@@ -23,15 +23,15 @@ def test_summary_totals_and_categories(populated_summary_client):
     assert round(summary.algemeen, 2) == 250.00
     assert round(summary.alcohol, 2) == 180.00
     assert round(summary.sterke_drank, 2) == 70.00
-    assert round(summary.persoonlijk, 2) == 40.00
-    assert round(summary.uitgaven, 2) == 540.00
+    assert round(summary.persoonlijk, 2) == 27.00
+    assert round(summary.uitgaven, 2) == 527.00
 
     assert round(summary.leden, 2) == 1205.00
     assert round(summary.leiding, 2) == 572.00
     assert round(summary.fourage, 2) == 390.00
 
     assert round(summary.inkomsten, 2) == 2167.00
-    assert round(summary.omzet, 2) == 1627.00
+    assert round(summary.omzet, 2) == 1640.00
 
     assert len(person_rows) == 20
 
@@ -85,8 +85,8 @@ def test_summary_view_render_and_excel_export(populated_summary_client):
     assert "alcohol ÷ 9 drinkers" in response.text
     assert "sterke drank ÷ 7 drinkers" in response.text
     assert "2167.00" in response.text
-    assert "540.00" in response.text
-    assert "1627.00" in response.text
+    assert "527.00" in response.text
+    assert "1640.00" in response.text
 
     sheet = storage.get_sheet(storage.SHEET_SUMMARY)
     first_col_values = [row[0] for row in sheet.iter_rows(values_only=True) if row and row[0]]
